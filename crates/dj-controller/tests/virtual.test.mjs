@@ -46,7 +46,9 @@ test('a virtual controller has the tree of a connected one, every control where 
   assert.equal(virt.mixer.crossfader.value, 8192)
   assert.equal(virt.mixer.channels[1].crossfaderAssign.thru.on, true)
   assert.equal(virt.decks[2].inControl.on, false)
-  assert.deepEqual(virt.decks[0].mode, real.decks[0].mode)
+  // The same start bank, known on the virtual one, its own device, and assumed on the connected one.
+  assert.deepEqual({ ...virt.decks[0].mode }, { ...real.decks[0].mode, pageAssumed: false })
+  assert.equal(real.decks[0].mode.pageAssumed, true)
   assert.equal(virt.decks[0].playPause.told, false)
   await close()
 })
@@ -188,6 +190,31 @@ test('a hold past the long press presses that layer too, a shared press names th
   await close()
 })
 
+// 94 21 ECHO's position, 94 20 LOW CUT ECHO's (MML p.3 F13).
+test('a selector knob dragged toward a position turns there, the wheel and arrow keys step it to its ends, as the device reports', async () => {
+  const { device, real, virt, close } = await both()
+  const parts = place(layoutOf(virt))
+  const knob = parts.find((p) => p.shape === 'selector' && p.positions.some((position) => position.on === virt.effect.beatFxSelect.echo))
+  const reach = { unit: virt.virtual, shown: () => 0, shift: () => undefined, shifted: () => false, later: () => () => {} }
+  const turn = hands(knob, reach)
+  const select = virt.effect.beatFxSelect
+  const dot = parts.find((p) => p.shape === 'position' && placed(p).some((c) => c.control === select.echo))
+  assert.equal(select.lowCutEcho.on, true)
+  turn.down({ x: knob.x, y: knob.y }, false)
+  turn.move({ x: knob.x + (dot.x - knob.x) * 3, y: knob.y + (dot.y - knob.y) * 3 })
+  turn.up()
+  assert.deepEqual([select.lowCutEcho.on, select.echo.on], [false, true])
+  for (const message of ['94 20 00', '94 21 7F']) device.input.receive(message)
+  assert.deepEqual([real.effect.beatFxSelect.lowCutEcho.on, real.effect.beatFxSelect.echo.on], [false, true])
+  turn.wheel(1)
+  assert.equal(select.mtDelay.on, true)
+  for (let i = 0; i < 20; i++) turn.key('ArrowDown', true, false)
+  assert.equal(select.lowCutEcho.on, true, 'it stops at its first position')
+  for (let i = 0; i < 20; i++) turn.key('ArrowUp', true, false)
+  assert.equal(select.mobiusTri.on, true, 'and at its last')
+  await close()
+})
+
 test('a virtual controller takes writes and leases as a connected one, and refuses a gesture it cannot take', async () => {
   const { real, virt, close } = await both()
   await virt.decks[0].playPause.led(true)
@@ -225,9 +252,8 @@ test("a label's bank is the view it names, the unshifted bank showing for a cont
   assert.equal(now(false), deck.modes.hotCue.pages[0].pads[2])
   assert.equal(now(true), deck.modes.hotCue.pages[0].shifted.pads[2])
   virt.virtual.press(deck.padMode.sampler)
-  assert.equal(now(false), undefined, 'the page of a mode just entered is not known until a pad or PAGE tells it')
-  virt.virtual.hit(deck.pads[2], 1)
-  assert.equal(now(false), deck.modes.sampler.pages[0].pads[2], 'a pad of a mode just entered is on its page 1')
+  assert.equal(now(false), deck.modes.sampler.pages[0].pads[2], 'a mode never seen comes up on its page 1')
+  assert.equal(deck.mode.pageAssumed, false, 'a virtual controller is its own device: it assumes no page')
   virt.virtual.press(deck.page.right)
   assert.equal(now(false), deck.modes.sampler.pages[1].pads[2])
   const cue = seats.get(deck.cue)

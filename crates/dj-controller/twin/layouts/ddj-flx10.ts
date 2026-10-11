@@ -108,8 +108,39 @@ function channel(flx: DdjFlx10, ch: DdjFlx10ChannelIndex): Entry[] {
   ]
 }
 
+type Detents = Extract<Entry, { shape: 'selector' }>['positions']
+
+/** A selector's positions as the dots round its knob, each lit where it is on. */
+const dots = (selector: string, positions: Detents): Entry[] => positions.map(({ name, at, on }) => ({ shape: 'position', at, size: 3, name: `${selector} ${name}`, controls: [{ control: on }] }))
+
 function mixer(flx: DdjFlx10): Entry[] {
   const fx = flx.effect.beatFxChSelect
+  // Each selector's positions round its knob, as the panel prints them (MAN p.54).
+  const effects: Detents = [
+    { name: 'low cut echo', at: [1091, 692], on: flx.effect.beatFxSelect.lowCutEcho },
+    { name: 'echo', at: [1085, 685], on: flx.effect.beatFxSelect.echo },
+    { name: 'mt delay', at: [1081, 676], on: flx.effect.beatFxSelect.mtDelay },
+    { name: 'spiral', at: [1082, 666], on: flx.effect.beatFxSelect.spiral },
+    { name: 'reverb', at: [1086, 658], on: flx.effect.beatFxSelect.reverb },
+    { name: 'trans', at: [1092, 651], on: flx.effect.beatFxSelect.trans },
+    { name: 'enigma jet', at: [1101, 647], on: flx.effect.beatFxSelect.enigmaJet },
+    { name: 'flanger', at: [1111, 647], on: flx.effect.beatFxSelect.flanger },
+    { name: 'phaser', at: [1120, 651], on: flx.effect.beatFxSelect.phaser },
+    { name: 'stretch', at: [1126, 658], on: flx.effect.beatFxSelect.stretch },
+    { name: 'slip roll', at: [1130, 666], on: flx.effect.beatFxSelect.slipRoll },
+    { name: 'roll', at: [1131, 676], on: flx.effect.beatFxSelect.roll },
+    { name: 'mobius saw', at: [1127, 685], on: flx.effect.beatFxSelect.mobiusSaw },
+    { name: 'mobius tri', at: [1121, 692], on: flx.effect.beatFxSelect.mobiusTri },
+  ]
+  const channels: Detents = [
+    { name: 'sampler', at: [1084, 761], on: flx.effect.beatFxChSelect.sampler },
+    { name: 'mic', at: [1083, 749], on: flx.effect.beatFxChSelect.mic },
+    { name: '3', at: [1091, 736], on: flx.effect.beatFxChSelect.channels[2] },
+    { name: '1', at: [1100, 731], on: flx.effect.beatFxChSelect.channels[0] },
+    { name: '2', at: [1112, 731], on: flx.effect.beatFxChSelect.channels[1] },
+    { name: '4', at: [1121, 736], on: flx.effect.beatFxChSelect.channels[3] },
+    { name: 'master', at: [1129, 749], on: flx.effect.beatFxChSelect.master },
+  ]
   return [
     { shape: 'position', at: [750, 60], size: 4, label: 'LINE', controls: [{ control: flx.mixer.channels[2].linePhono.line }] },
     { shape: 'position', at: [1014, 60], size: 4, label: 'LINE', controls: [{ control: flx.mixer.channels[3].linePhono.line }] },
@@ -157,29 +188,10 @@ function mixer(flx: DdjFlx10): Entry[] {
     },
     { shape: 'button', at: [1089, 617], size: [24, 16], label: '◀', name: 'beat FX left', controls: [{ control: flx.effect.beat.left }] },
     { shape: 'button', at: [1124, 617], size: [24, 16], label: '▶', name: 'beat FX right', controls: [{ control: flx.effect.beat.right }] },
-    { shape: 'passive', at: [1106, 672], size: 13 },
-    { shape: 'position', at: [1091, 692], size: 3, name: 'beat FX select low cut echo', controls: [{ control: flx.effect.beatFxSelect.lowCutEcho }] },
-    { shape: 'position', at: [1085, 685], size: 3, name: 'beat FX select echo', controls: [{ control: flx.effect.beatFxSelect.echo }] },
-    { shape: 'position', at: [1081, 676], size: 3, name: 'beat FX select mt delay', controls: [{ control: flx.effect.beatFxSelect.mtDelay }] },
-    { shape: 'position', at: [1082, 666], size: 3, name: 'beat FX select spiral', controls: [{ control: flx.effect.beatFxSelect.spiral }] },
-    { shape: 'position', at: [1086, 658], size: 3, name: 'beat FX select reverb', controls: [{ control: flx.effect.beatFxSelect.reverb }] },
-    { shape: 'position', at: [1092, 651], size: 3, name: 'beat FX select trans', controls: [{ control: flx.effect.beatFxSelect.trans }] },
-    { shape: 'position', at: [1101, 647], size: 3, name: 'beat FX select enigma jet', controls: [{ control: flx.effect.beatFxSelect.enigmaJet }] },
-    { shape: 'position', at: [1111, 647], size: 3, name: 'beat FX select flanger', controls: [{ control: flx.effect.beatFxSelect.flanger }] },
-    { shape: 'position', at: [1120, 651], size: 3, name: 'beat FX select phaser', controls: [{ control: flx.effect.beatFxSelect.phaser }] },
-    { shape: 'position', at: [1126, 658], size: 3, name: 'beat FX select stretch', controls: [{ control: flx.effect.beatFxSelect.stretch }] },
-    { shape: 'position', at: [1130, 666], size: 3, name: 'beat FX select slip roll', controls: [{ control: flx.effect.beatFxSelect.slipRoll }] },
-    { shape: 'position', at: [1131, 676], size: 3, name: 'beat FX select roll', controls: [{ control: flx.effect.beatFxSelect.roll }] },
-    { shape: 'position', at: [1127, 685], size: 3, name: 'beat FX select mobius saw', controls: [{ control: flx.effect.beatFxSelect.mobiusSaw }] },
-    { shape: 'position', at: [1121, 692], size: 3, name: 'beat FX select mobius tri', controls: [{ control: flx.effect.beatFxSelect.mobiusTri }] },
-    { shape: 'passive', at: [1106, 753], size: 13 },
-    { shape: 'position', at: [1084, 761], size: 3, name: 'beat FX channel sampler', controls: [{ control: flx.effect.beatFxChSelect.sampler }] },
-    { shape: 'position', at: [1083, 749], size: 3, name: 'beat FX channel mic', controls: [{ control: flx.effect.beatFxChSelect.mic }] },
-    { shape: 'position', at: [1091, 736], size: 3, name: 'beat FX channel 3', controls: [{ control: flx.effect.beatFxChSelect.channels[2] }] },
-    { shape: 'position', at: [1100, 731], size: 3, name: 'beat FX channel 1', controls: [{ control: flx.effect.beatFxChSelect.channels[0] }] },
-    { shape: 'position', at: [1112, 731], size: 3, name: 'beat FX channel 2', controls: [{ control: flx.effect.beatFxChSelect.channels[1] }] },
-    { shape: 'position', at: [1121, 736], size: 3, name: 'beat FX channel 4', controls: [{ control: flx.effect.beatFxChSelect.channels[3] }] },
-    { shape: 'position', at: [1129, 749], size: 3, name: 'beat FX channel master', controls: [{ control: flx.effect.beatFxChSelect.master }] },
+    { shape: 'selector', at: [1106, 672], size: 13, name: 'beat FX select', controls: [], positions: effects },
+    ...dots('beat FX select', effects),
+    { shape: 'selector', at: [1106, 753], size: 13, name: 'beat FX channel', controls: [], positions: channels },
+    ...dots('beat FX channel', channels),
     { shape: 'knob', at: [1106, 830], size: 17, label: 'LEVEL/DEPTH', controls: [{ control: flx.effect.levelDepth }] },
     { shape: 'round', at: [1106, 905], size: 22, label: 'ON/OFF', controls: [{ control: flx.effect.beatFxOnOff }] },
   ]

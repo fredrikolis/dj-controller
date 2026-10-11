@@ -39,6 +39,7 @@ export type Entry = Geometry &
     | { readonly shape: 'position'; readonly controls: readonly Placed<Switch>[] }
     | { readonly shape: 'encoder'; readonly controls: readonly Placed<Relative<Id>>[] }
     | { readonly shape: 'spin'; readonly controls: readonly Placed<Relative<Id>>[]; readonly layer?: string; readonly touch?: readonly Button<Id>[]; readonly ticks?: number }
+    | { readonly shape: 'selector'; readonly controls: readonly []; readonly positions: readonly { readonly name: string; readonly at: readonly [number, number]; readonly on: Switch }[] }
     | { readonly shape: 'meter'; readonly controls: readonly Placed<ValueOut>[] }
     | { readonly shape: 'jog'; readonly controls: readonly Placed<ValueOut>[]; readonly screens: readonly JogScreen[] }
     | { readonly shape: 'display'; readonly id: 'beatFx'; readonly controls: readonly []; readonly channels: readonly { readonly text: string; readonly on: Switch }[] }

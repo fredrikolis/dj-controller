@@ -1,6 +1,7 @@
 // Concern: a virtual controller's hands on one placed part: pointer, key and wheel as its control's gestures | Non-concern: DOM events (hold.ts), a gesture's message | IO: (part, point, key) -> gestures
 import type { Absolute, Button, Pad, Relative, Switch, VirtualGestures } from '../index.js'
 import { dims } from './draw.js'
+import { positionOf } from './follow.js'
 import type { Part } from './types.js'
 
 export type Point = { readonly x: number; readonly y: number }
@@ -249,6 +250,43 @@ function encoder(part: Part & { shape: 'encoder' }, reach: Reach): Hands {
   }
 }
 
+/** A selector's knob: a drag turns it to the position nearest the pointer's direction, each a detent; the wheel and arrow keys step it, stopped at its ends. */
+function selector(part: Part & { shape: 'selector' }, reach: Reach): Hands {
+  const { positions } = part
+  const to = (at: number) => {
+    const position = positions[Math.min(positions.length - 1, Math.max(0, at))]
+    if (position.on.on !== true) reach.unit.flip(position.on, true)
+  }
+  const step = (by: number) => to((positionOf(positions) ?? 0) + by)
+  const angle = (x: number, y: number) => Math.atan2(x - part.at[0], part.at[1] - y)
+  const apart = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)))
+  const [w] = dims(part.size)
+  let dragging = false
+  return {
+    role: 'slider',
+    down() {
+      dragging = true
+    },
+    move(at) {
+      // Its place is its section's, as its positions' are: the pointer's is taken back to it.
+      const [x, y] = [at.x - (part.x - part.at[0]), at.y - (part.y - part.at[1])]
+      if (!dragging || Math.hypot(x - part.at[0], y - part.at[1]) < w / 4) return
+      const pointed = angle(x, y)
+      const nearest = positions.reduce((best, position, i) => (apart(angle(...position.at), pointed) < apart(angle(...positions[best].at), pointed) ? i : best), 0)
+      to(nearest)
+    },
+    up() {
+      dragging = false
+    },
+    key(key, pressed) {
+      const way = UP.has(key) ? 1 : DOWN.has(key) ? -1 : 0
+      if (way !== 0 && pressed) step(way)
+      return way !== 0
+    },
+    wheel: (steps) => step(steps),
+  }
+}
+
 /** The hands a virtual controller's `part` takes; none for a part no hand moves. */
 export function hands(part: Part, reach: Reach): Hands | undefined {
   switch (part.shape) {
@@ -268,6 +306,8 @@ export function hands(part: Part, reach: Reach): Hands | undefined {
       return spin(part, reach)
     case 'encoder':
       return encoder(part, reach)
+    case 'selector':
+      return selector(part, reach)
     default:
       return undefined
   }

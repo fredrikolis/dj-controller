@@ -77,7 +77,7 @@ export class Twin extends HTMLElement {
   #told(part: Part, at: number): Told {
     if (part.shape === 'display') return { beatFx: this.#texts[part.id] }
     if (part.shape === 'jog') return { jog: this.#texts[part.screens[at].id] }
-    const seat: Seat | undefined = part.shape === 'passive' ? undefined : this.#tree.seats.get(part.controls[at].control)
+    const seat: Seat | undefined = part.shape === 'passive' || part.shape === 'selector' ? undefined : this.#tree.seats.get(part.controls[at].control)
     if (!seat) return {}
     const shown = shownOf(seat, this.#tree.owners)
     const bank = (shift: boolean) => showing(seat, shown, shift)

@@ -1,12 +1,12 @@
 // Concern: follows one placed control's typed streams until the signal aborts or the controller closes, as patches to its part's state | Non-concern: painting, writes | IO: (part, signal) -> patches
-import type { Telling } from '../index.js'
+import type { Switch, Telling } from '../index.js'
 import type { JogShown } from './screens.js'
 import type { Id, JogScreen, Part } from './types.js'
 
 /** What the device last reported of one control, and what its LED or colour was last told, as the twin draws it: `turns`, a relative control's revolutions, where its model states its ticks a revolution. */
-export type State = { down: boolean; shift: boolean; velocity: number; fraction: number | undefined; ticks: number; turns: number | undefined; lit: boolean | undefined; colour: number | undefined; screen: JogShown; channel: string | undefined; at: number }
+export type State = { down: boolean; shift: boolean; velocity: number; fraction: number | undefined; ticks: number; turns: number | undefined; lit: boolean | undefined; colour: number | undefined; screen: JogShown; channel: string | undefined; position: number | undefined; at: number }
 
-export const initial = (_: unknown, at = 0): State => ({ down: false, shift: false, velocity: 0, fraction: undefined, ticks: 0, turns: undefined, lit: undefined, colour: undefined, screen: {}, channel: undefined, at })
+export const initial = (_: unknown, at = 0): State => ({ down: false, shift: false, velocity: 0, fraction: undefined, ticks: 0, turns: undefined, lit: undefined, colour: undefined, screen: {}, channel: undefined, position: undefined, at })
 
 export type Sink = { set(patch: Partial<State>): void; flash(shift: boolean): void }
 
@@ -37,6 +37,12 @@ async function layers<C>(control: C, shifted: C | undefined, follow: (layer: C, 
 async function told<T>(control: Telling<T>, signal: AbortSignal, set: (value: T | undefined) => void): Promise<void> {
   set(control.told)
   for await (const value of control.toldChanges({ signal })) set(value)
+}
+
+/** The position a selector is at: the one on, undefined while none or several report on. */
+export function positionOf(positions: readonly { readonly on: Switch }[]): number | undefined {
+  const on = positions.flatMap((position, at) => (position.on.on === true ? [at] : []))
+  return on.length === 1 ? on[0] : undefined
 }
 
 /** Follows each output of a jog's screen as the driver last told it, a labelled one as its label. */
@@ -121,6 +127,14 @@ export async function follow(part: Part, at: number, signal: AbortSignal, sink: 
   } else if (part.shape === 'jog') {
     const ring = told(part.controls[at].control, signal, (value) => sink.set({ lit: value === undefined ? undefined : value > 0 }))
     await Promise.all([ring, screen(part.screens[at], signal, sink)])
+  } else if (part.shape === 'selector') {
+    const on = () => sink.set({ position: positionOf(part.positions) })
+    on()
+    await Promise.all(
+      part.positions.map(async (position) => {
+        for await (const _ of position.on.changes({ signal })) on()
+      }),
+    )
   } else if (part.shape === 'display') {
     const on = () => sink.set({ channel: part.channels.find((channel) => channel.on.on === true)?.text })
     on()

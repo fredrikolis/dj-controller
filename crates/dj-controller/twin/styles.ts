@@ -43,7 +43,7 @@ ${Object.entries(tokens).map(([name, value]) => `    --${name}: var(--dj-twin-${
   .part .reach { fill: transparent; stroke: none; }
   .part text.told { fill: var(--on-screen); stroke: var(--screen); stroke-width: 2.5; paint-order: stroke; stroke-linejoin: round; font-weight: 700; }
   .part.played { cursor: pointer; touch-action: none; -webkit-user-select: none; user-select: none; }
-  .part.played.fader, .part.played.knob, .part.played.spin, .part.played.encoder { cursor: grab; }
+  .part.played.fader, .part.played.knob, .part.played.spin, .part.played.encoder, .part.played.selector { cursor: grab; }
   .part.lit .body { fill: color-mix(in srgb, var(--led) 45%, var(--panel)); stroke: var(--led); }
   .part.jog.lit .body { stroke: var(--on-screen); fill: var(--screen); }
   .part.coloured .body { fill: var(--told-colour); }

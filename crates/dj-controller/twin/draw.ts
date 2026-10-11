@@ -62,7 +62,7 @@ export function draw(svg: SVGSVGElement, part: Part): View {
     el(g, 'rect', h > w ? { class: 'slot', x: x - 2, y: y - h / 2, width: 4, height: h } : { class: 'slot', x: x - w / 2, y: y - 2, width: w, height: 4 })
     view.halo = el(g, 'rect', { class: 'halo', x: x - w / 2 - 3, y: y - h / 2 - 3, width: w + 6, height: h + 6, rx: 4 })
     view.cap = el(g, 'rect', { class: 'cap', rx: 2, ...capAt(part, 0) })
-  } else if (part.shape === 'knob' || part.shape === 'encoder') {
+  } else if (part.shape === 'knob' || part.shape === 'encoder' || part.shape === 'selector') {
     view.halo = body(g, part, 4, 'halo')
     body(g, part)
     if (part.shape === 'knob') view.arc = el(g, 'path', { class: 'arc' })

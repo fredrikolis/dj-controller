@@ -68,7 +68,11 @@ export function paint(part: Part, view: View, state: State & { held: boolean }, 
     view.level.setAttribute('height', String((f ?? 0) * h))
   }
   if (view.pointer) {
-    const deg = part.shape === 'knob' ? (f === undefined ? 0 : -KNOB_DEG + 2 * KNOB_DEG * f) : state.ticks * ENCODER_DEG
+    const at = part.shape === 'selector' && state.position !== undefined ? part.positions[state.position] : undefined
+    // A selector points at the dot of its position.
+    const toward = at === undefined ? 0 : (Math.atan2(at.at[0] - part.at[0], part.at[1] - at.at[1]) * 180) / Math.PI
+    if (part.shape === 'selector') g.setAttribute('aria-valuetext', at?.name ?? '')
+    const deg = part.shape === 'selector' ? toward : part.shape === 'knob' ? (f === undefined ? 0 : -KNOB_DEG + 2 * KNOB_DEG * f) : state.ticks * ENCODER_DEG
     view.pointer.setAttribute('transform', `rotate(${deg} ${part.x} ${part.y})`)
     if (view.arc && f !== undefined) view.arc.setAttribute('d', arc(part.x, part.y, w / 2 + 2, -KNOB_DEG, Math.max(-KNOB_DEG + 0.1, deg)))
   }

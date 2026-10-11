@@ -18,6 +18,6 @@ export function place(layout: Layout): Part[] {
 }
 
 export function placed(part: Part): readonly Placed<unknown>[] {
-  // A display shows no control of its own: one seat, for its text.
-  return part.shape === 'passive' ? [] : part.shape === 'display' ? [{ control: part }] : part.controls
+  // A display and a selector show no one control of their own: one seat each.
+  return part.shape === 'passive' ? [] : part.shape === 'display' || part.shape === 'selector' ? [{ control: part }] : part.controls
 }
