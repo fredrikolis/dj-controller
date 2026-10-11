@@ -1,4 +1,5 @@
 // Concern: the effect processor on a context: its module registered once, a node of it made | Non-concern: what it plays (fx.worklet.ts) | IO: (context) -> node
+import { measureCycleLag } from './cycle.ts'
 import fxUrl from './fx.worklet.ts?worker&url'
 import { FX_PROCESSOR, type FxMessage } from './messages.ts'
 
@@ -7,7 +8,7 @@ const registered = new WeakMap<BaseAudioContext, Promise<void>>()
 export function registerFx(ctx: BaseAudioContext): Promise<void> {
   const known = registered.get(ctx)
   if (known) return known
-  const loading = ctx.audioWorklet.addModule(fxUrl).catch((err: unknown) => {
+  const loading = Promise.all([ctx.audioWorklet.addModule(fxUrl), measureCycleLag(ctx)]).then(() => undefined, (err: unknown) => {
     registered.delete(ctx)
     throw new Error('the effect processor did not load', { cause: err })
   })

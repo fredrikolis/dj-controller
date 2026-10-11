@@ -2,7 +2,7 @@
 import type { Insert } from '../../shared/engine/engine.ts'
 import { balanceOf, beatSeconds, transCutOf } from '../../shared/fx/dsp.ts'
 import { DELAY_SECONDS, type FxMessage } from '../../shared/fx/messages.ts'
-import { ECHOES, echoOf, flangerOf, impulseOf, phaserOf, set, type Echo } from '../../shared/fx/nodes.ts'
+import { ECHOES, echoOf, flangerOf, impulseOf, phaserOf, repeatsOf, set, type Echo, type Repeats } from '../../shared/fx/nodes.ts'
 import { createProcessor } from '../../shared/fx/processor.ts'
 import { logger } from '../../shared/logger.ts'
 import { BALANCED, type BeatFx } from './effects.ts'
@@ -15,9 +15,16 @@ export type BeatFxUnit = Insert & {
 }
 
 const CHANNELS = 2
-// MAN p.94: up to 7 repeats in 1/8 units of the effect time. ASSUMPTION: each quieter, through the echo's filters.
+// MAN p.94: up to 7 repeats in 1/8 units of the effect time. ASSUMPTION: each quieter, through the echo's filters, together about the dry sound's level.
 const TAPS = 7
-const SPIRAL_GLIDE = 0.15
+const TAPS_LEVEL = 0.55
+// MAN p.95: the pitch changes with the delay time. ASSUMPTION: the time moves at half real time, so its sound plays a fifth up or an octave down meanwhile.
+const SPIRAL_SLIDE = 0.5
+// ASSUMPTION: SPIRAL's feedback from LEVEL/DEPTH's bottom to its top; its trail rings out at the bottom's.
+const SPIRAL_FEEDBACK = [0.45, 0.85] as const
+// ASSUMPTION: REVERB at full LEVEL/DEPTH about as loud as the sound it takes; a new size fades in over this.
+const REVERB_LEVEL = 1.1
+const REVERB_FADE = 0.06
 
 type Taps = { readonly send: GainNode; readonly delays: readonly DelayNode[]; readonly wet: GainNode }
 
@@ -35,21 +42,55 @@ function multiTapOf(ctx: BaseAudioContext, from: AudioNode, to: AudioNode): Taps
   return { send, delays, wet }
 }
 
-type Spiral = { readonly send: GainNode; readonly delay: DelayNode; readonly feedback: GainNode; readonly wet: GainNode }
+type Spiral = { readonly send: GainNode; readonly repeats: Repeats; readonly wet: GainNode }
 
-/** MAN p.95: a reverb whose pitch bends as its delay time moves. */
+// MAN p.95: a reverb whose pitch bends as its delay time moves. ASSUMPTION: each pass smeared by all-passes, none louder than it came in.
+const SPIRAL_SMEAR = [220, 480, 950, 1900, 3600, 6200] as const
+
 function spiralOf(ctx: BaseAudioContext, from: AudioNode, to: AudioNode): Spiral {
   const send = new GainNode(ctx, { gain: 0 })
-  const delay = new DelayNode(ctx, { maxDelayTime: DELAY_SECONDS, delayTime: 0.25 })
-  const feedback = new GainNode(ctx, { gain: 0.6 })
   const wet = new GainNode(ctx, { gain: 0 })
-  const diffusers = [310, 770, 1600, 3300].map((frequency) => new BiquadFilterNode(ctx, { type: 'allpass', frequency, Q: 0.5 }))
-  const dark = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 7000 })
-  from.connect(send).connect(delay)
-  const last = diffusers.reduce<AudioNode>((node, d) => node.connect(d), delay).connect(dark)
-  last.connect(feedback).connect(delay)
-  last.connect(wet).connect(to)
-  return { send, delay, feedback, wet }
+  // A low-pass's Q is in dB: -3 is the flattest, so no frequency grows round the loop.
+  const repeats = repeatsOf(ctx, SPIRAL_FEEDBACK[0], () => [...SPIRAL_SMEAR.map((frequency) => new BiquadFilterNode(ctx, { type: 'allpass', frequency, Q: 2.5 })), new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 7000, Q: -3 })])
+  from.connect(send).connect(repeats.input)
+  repeats.output.connect(wet).connect(to)
+  return { send, repeats, wet }
+}
+
+type Reverb = { size(percent: number): void; send(level: number): void }
+
+/** Two convolvers: a new size fades in on the idle one while the other's tail rings out. */
+function reverbOf(ctx: BaseAudioContext, from: AudioNode, to: AudioNode): Reverb {
+  const back = new GainNode(ctx, { gain: REVERB_LEVEL })
+  back.connect(to)
+  const rooms = [0, 1].map(() => {
+    const send = new GainNode(ctx, { gain: 0 })
+    const room = new ConvolverNode(ctx, { disableNormalization: true })
+    from.connect(send).connect(room).connect(back)
+    return { send, room }
+  })
+  const impulses = new Map<number, AudioBuffer>()
+  let live = 0
+  let sized: number | null = null
+  let level = 0
+  return {
+    size(percent) {
+      if (percent === sized) return
+      const impulse = impulses.get(percent) ?? impulseOf(ctx, percent)
+      impulses.set(percent, impulse)
+      if (sized !== null) {
+        set(rooms[live].send.gain, 0, ctx, REVERB_FADE / 3)
+        live = 1 - live
+      }
+      rooms[live].room.buffer = impulse
+      set(rooms[live].send.gain, level, ctx, REVERB_FADE / 3)
+      sized = percent
+    },
+    send(to) {
+      level = to
+      set(rooms[live].send.gain, to, ctx)
+    },
+  }
 }
 
 const same = (a: FxMessage | undefined, b: FxMessage) => a !== undefined && JSON.stringify(a) === JSON.stringify(b)
@@ -70,11 +111,7 @@ export function createBeatFxUnit(ctx: AudioContext, signal: AbortSignal): BeatFx
   const echoes: Readonly<Record<'lowCutEcho' | 'echo' | 'releaseEcho', Echo>> = { lowCutEcho: echo('lowCutEcho'), echo: echo('echo'), releaseEcho: echo('releaseEcho') }
   const taps = multiTapOf(ctx, shaped, output)
   const spiral = spiralOf(ctx, shaped, output)
-  const reverbSend = new GainNode(ctx, { gain: 0 })
-  const convolver = new ConvolverNode(ctx)
-  const reverbReturn = new GainNode(ctx, { gain: 0.6 })
-  shaped.connect(reverbSend).connect(convolver).connect(reverbReturn).connect(output)
-  const impulses = new Map<number, AudioBuffer>()
+  const reverb = reverbOf(ctx, shaped, output)
   const sent: Partial<Record<FxMessage['kind'], FxMessage>> = {}
   const send = (message: FxMessage) => {
     if (same(sent[message.kind], message)) return
@@ -85,16 +122,17 @@ export function createBeatFxUnit(ctx: AudioContext, signal: AbortSignal): BeatFx
   let bpm = 120
   let last: BeatFxState | null = null
   let drifted = false
+  let spiralling = false
 
   function timed(s: BeatFxState): void {
     const on = activeOf(s)
     const seconds = (beats: number) => Math.abs(beats) * beatSeconds(bpm)
-    if (s.release.held && s.release.type === 'releaseEcho') set(echoes.releaseEcho.delay.delayTime, seconds(s.release.beats), ctx, 0.05)
+    if (s.release.held && s.release.type === 'releaseEcho') echoes.releaseEcho.time(seconds(s.release.beats), 0.05)
     if (on !== null) {
       const time = seconds(on.value)
-      if (on.effect === 'lowCutEcho' || on.effect === 'echo') set(echoes[on.effect].delay.delayTime, time, ctx, 0.05)
+      if (on.effect === 'lowCutEcho' || on.effect === 'echo') echoes[on.effect].time(time, 0.05)
       if (on.effect === 'mtDelay') taps.delays.forEach((d, k) => set(d.delayTime, ((k + 1) / (TAPS + 1)) * time, ctx, 0.05))
-      if (on.effect === 'spiral') set(spiral.delay.delayTime, time, ctx, SPIRAL_GLIDE)
+      if (on.effect === 'spiral') spiralling ? spiral.repeats.slide(time, SPIRAL_SLIDE) : spiral.repeats.time(time, 0.005)
       if (on.effect === 'flanger' || on.effect === 'phaser') set((on.effect === 'flanger' ? flanger : phaser).lfo.frequency, 1 / time, ctx, 0.05)
     }
     const frames = (beats: number) => Math.round(seconds(beats) * ctx.sampleRate)
@@ -123,18 +161,12 @@ export function createBeatFxUnit(ctx: AudioContext, signal: AbortSignal): BeatFx
     set(echoes.releaseEcho.send.gain, releasing ? 0 : 1, ctx, 0.02)
     set(echoes.releaseEcho.wet.gain, releasing ? ECHOES.releaseEcho.wet : 0, ctx, releasing ? 0.005 : 0.03)
     set(taps.send.gain, is('mtDelay') ? 1 : 0, ctx)
-    if (is('mtDelay')) set(taps.wet.gain, w, ctx)
+    if (is('mtDelay')) set(taps.wet.gain, TAPS_LEVEL * w, ctx)
     set(spiral.send.gain, is('spiral') ? 1 : 0, ctx)
-    if (is('spiral')) {
-      set(spiral.wet.gain, w, ctx)
-      set(spiral.feedback.gain, 0.45 + 0.4 * s.depth, ctx)
-    }
-    if (is('reverb') && on) {
-      const impulse = impulses.get(on.value) ?? impulseOf(ctx, on.value)
-      impulses.set(on.value, impulse)
-      if (convolver.buffer !== impulse) convolver.buffer = impulse
-    }
-    set(reverbSend.gain, is('reverb') ? w : 0, ctx)
+    if (is('spiral')) set(spiral.wet.gain, w, ctx)
+    set(spiral.repeats.feedback.gain, SPIRAL_FEEDBACK[0] + (is('spiral') ? (SPIRAL_FEEDBACK[1] - SPIRAL_FEEDBACK[0]) * s.depth : 0), ctx)
+    if (is('reverb') && on) reverb.size(on.value)
+    reverb.send(is('reverb') ? w : 0)
     for (const [effect, unit] of [['flanger', flanger], ['phaser', phaser]] as const) {
       set(unit.wet.gain, is(effect) ? 0.7 * s.depth : 0, ctx)
       set(unit.dry.gain, is(effect) ? 1 - 0.3 * s.depth : 1, ctx)
@@ -144,6 +176,7 @@ export function createBeatFxUnit(ctx: AudioContext, signal: AbortSignal): BeatFx
     const mobius = on && (on.effect === 'mobiusSaw' || on.effect === 'mobiusTri') ? on : null
     send(mobius ? { kind: 'mobius', beats: mobius.value, wave: mobius.effect === 'mobiusSaw' ? 'saw' : 'tri', level: s.depth } : { kind: 'mobius', beats: null, wave: 'saw', level: 0 })
     timed(s)
+    spiralling = is('spiral')
   }
 
   signal.addEventListener(

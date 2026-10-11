@@ -64,7 +64,7 @@ export function createPadFxUnit(ctx: AudioContext, songBpm: number, signal: Abor
   function follow(): void {
     for (const effect of [...HELD_ECHOES, 'releaseEcho'] as const) {
       const seconds = timed(effect)
-      if (seconds !== null) set(echoes[effect].delay.delayTime, seconds, ctx, 0.05)
+      if (seconds !== null) echoes[effect].time(seconds, 0.05)
     }
     for (const [effect, unit] of [['flanger', flanger], ['phaser', phaser]] as const) {
       const seconds = timed(effect)

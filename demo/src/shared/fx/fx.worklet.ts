@@ -39,6 +39,8 @@ class Fx extends AudioWorkletProcessor {
   #fade = 1
   #dry = 0
   #wet = 1
+  #dryTold = 0
+  #wetTold = 1
   #beat = 0
   #beatsASecond = 2
   #trans: { readonly beats: number; readonly cut: number; readonly open: number } | null = null
@@ -80,8 +82,8 @@ class Fx extends AudioWorkletProcessor {
         return
       case 'buffer': {
         const r = this.#reading
-        this.#dry = message.dry
-        this.#wet = message.wet
+        this.#dryTold = message.dry
+        this.#wetTold = message.wet
         if (r.mode === message.mode && r.frames === message.frames && r.slow === message.slow) return
         const start = keepsStart(r, message.mode, message.frames) ? r.start : this.#written
         this.#was = r
@@ -100,7 +102,6 @@ class Fx extends AudioWorkletProcessor {
         return
       case 'mobius':
         this.#mobius = message.beats === null ? null : { beats: message.beats, wave: message.wave, level: message.level }
-        this.#wave = message.wave
         return
     }
   }
@@ -147,7 +148,10 @@ class Fx extends AudioWorkletProcessor {
 
   #tone(beatStep: number): number {
     const m = this.#mobius
-    this.#mobiusLevel += ((m ? m.level : 0) - this.#mobiusLevel) * this.#slowSmooth
+    // A new wave waits for the old one to fade out.
+    const turning = m !== null && m.wave !== this.#wave
+    if (turning && this.#mobiusLevel < 1e-4) this.#wave = m.wave
+    this.#mobiusLevel += ((m && !turning ? m.level : 0) - this.#mobiusLevel) * this.#slowSmooth
     if (this.#mobiusLevel < 1e-5 && !m) return 0
     if (m) this.#octaves += (Math.sign(m.beats) * beatStep) / Math.abs(m.beats)
     let sum = 0
@@ -182,6 +186,8 @@ class Fx extends AudioWorkletProcessor {
       if (jet) this.#jetPhase += (Math.sign(jet.beats) * beatStep) / Math.abs(jet.beats)
       const jetting = this.#jetMix > 1e-5
       const tone = this.#tone(beatStep)
+      this.#dry += (this.#dryTold - this.#dry) * this.#slowSmooth
+      this.#wet += (this.#wetTold - this.#wet) * this.#slowSmooth
       for (let c = 0; c < this.#channels; c++) {
         const ring = this.#rings[c]
         const live = input[c]?.[i] ?? 0

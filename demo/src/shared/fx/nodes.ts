@@ -1,4 +1,5 @@
 // Concern: the Web Audio parts rekordbox's effects are built of: echoes, a reverb impulse, a flanger, a phaser, smoothed and gliding params | Non-concern: which effect is on | IO: (context) -> nodes
+import { cycleLag } from './cycle.ts'
 import { DELAY_SECONDS } from './messages.ts'
 
 const SMOOTH = 0.01
@@ -17,24 +18,72 @@ export const ECHOES = {
 
 export type EchoEffect = keyof typeof ECHOES
 
-export type Echo = { readonly send: GainNode; readonly delay: DelayNode; readonly wet: GainNode; readonly voice: EchoVoice }
+const QUANTUM = 128
+
+export type Repeats = {
+  readonly input: GainNode
+  readonly output: GainNode
+  readonly feedback: GainNode
+  time(seconds: number, smooth: number): void
+  /** At `rate` seconds a second: the sound in the delay plays that much faster or slower meanwhile. */
+  slide(seconds: number, rate: number): void
+}
+
+/** Repeats a whole delay time apart, each through `colour` once more; the cycle's pass is shortened by the browser's lag. */
+export function repeatsOf(ctx: BaseAudioContext, feedback: number, colour: () => readonly AudioNode[]): Repeats {
+  const lag = cycleLag(ctx)
+  const input = new GainNode(ctx)
+  const output = new GainNode(ctx)
+  const first = new DelayNode(ctx, { maxDelayTime: DELAY_SECONDS, delayTime: 0.25 })
+  const again = new DelayNode(ctx, { maxDelayTime: DELAY_SECONDS, delayTime: 0.25 - lag })
+  const back = new GainNode(ctx, { gain: feedback })
+  const through = (from: AudioNode) => colour().reduce<AudioNode>((node, next) => node.connect(next), from)
+  through(input.connect(first)).connect(output)
+  through(output.connect(back).connect(again)).connect(output)
+  const checked = (seconds: number) => {
+    if (!(seconds - lag >= QUANTUM / ctx.sampleRate)) throw new RangeError(`repeats ${seconds} s apart are closer than a delay cycle passes on this browser: ${lag + QUANTUM / ctx.sampleRate} s`)
+  }
+  let aimed = 0.25
+  return {
+    input,
+    output,
+    feedback: back,
+    time(seconds, smooth) {
+      checked(seconds)
+      aimed = seconds
+      set(first.delayTime, seconds, ctx, smooth)
+      set(again.delayTime, seconds - lag, ctx, smooth)
+    },
+    slide(seconds, rate) {
+      checked(seconds)
+      if (seconds === aimed) return
+      aimed = seconds
+      const now = ctx.currentTime
+      for (const [param, to] of [[first.delayTime, seconds], [again.delayTime, seconds - lag]] as const) {
+        // Chrome 149's cancelAndHoldAtTime forgets a setTargetAtTime (observed 2026-10-11).
+        const from = param.value
+        param.cancelScheduledValues(now)
+        param.setValueAtTime(from, now)
+        param.linearRampToValueAtTime(to, now + Math.abs(to - from) / rate)
+      }
+    },
+  }
+}
+
+export type Echo = { readonly send: GainNode; readonly wet: GainNode; readonly voice: EchoVoice; time(seconds: number, smooth: number): void }
 
 /** Repeats fed back through the voice's filters, the send open from the start when `released`. */
 export function echoOf(ctx: BaseAudioContext, from: AudioNode, to: AudioNode, voice: EchoVoice, released: boolean, signal: AbortSignal): Echo {
   const send = new GainNode(ctx, { gain: released ? 1 : 0 })
-  const delay = new DelayNode(ctx, { maxDelayTime: DELAY_SECONDS, delayTime: 0.25 })
-  const feedback = new GainNode(ctx, { gain: voice.feedback })
   const wet = new GainNode(ctx, { gain: released ? 0 : voice.wet })
-  const filters = voice.filters.map((options) => new BiquadFilterNode(ctx, options))
-  from.connect(send).connect(delay)
-  const last = filters.reduce<AudioNode>((node, filter) => node.connect(filter), delay)
-  last.connect(feedback).connect(delay)
-  last.connect(wet).connect(to)
+  const repeats = repeatsOf(ctx, voice.feedback, () => voice.filters.map((options) => new BiquadFilterNode(ctx, options)))
+  from.connect(send).connect(repeats.input)
+  repeats.output.connect(wet).connect(to)
   signal.addEventListener('abort', () => wet.disconnect(), { once: true })
-  return { send, delay, wet, voice }
+  return { send, wet, voice, time: repeats.time }
 }
 
-/** Decaying noise over `percent` of the largest room, darker as it fades. ASSUMPTION: 0.6 s to 4 s. */
+/** Decaying noise over `percent` of the largest room, darker as it fades, each channel of unit energy. ASSUMPTION: 0.6 s to 4 s. */
 export function impulseOf(ctx: BaseAudioContext, percent: number): AudioBuffer {
   const seconds = 0.6 + 3.4 * (percent / 100)
   const frames = Math.ceil(seconds * ctx.sampleRate)
@@ -48,6 +97,8 @@ export function impulseOf(ctx: BaseAudioContext, percent: number): AudioBuffer {
       dark += (Math.random() * 2 - 1 - dark) * (1 - smooth)
       data[i] = dark * Math.exp(-6.9 * t)
     }
+    const energy = Math.sqrt(data.reduce((sum, x) => sum + x * x, 0))
+    for (let i = 0; i < frames; i++) data[i] = (data[i] ?? 0) / energy
   }
   return buffer
 }
