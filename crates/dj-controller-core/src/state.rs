@@ -2,6 +2,7 @@
 //! Pad mode and page live on the controller (docs/research/flx10-midi.md); the rules are
 //! docs/research/model-surface.md.
 
+use std::collections::HashMap;
 use std::fmt;
 
 use crate::decode::{Event, Value};
@@ -13,6 +14,8 @@ use crate::surface::{Kind, Owner, Surface};
 pub struct Shown {
     pub mode: Option<usize>,
     pub page: Option<usize>,
+    /// The page is taken, not told by a pad or PAGE press.
+    pub page_assumed: bool,
     pub shift: bool,
 }
 
@@ -51,23 +54,36 @@ pub struct State {
     rows: Vec<Option<(u64, Value)>>,
     turned: Vec<(i64, f64)>,
     owners: Vec<Shown>,
+    /// By owner, each pad mode's last page.
+    pages: Vec<HashMap<usize, usize>>,
+    /// The session is the device itself: nothing is assumed.
+    own: bool,
 }
 
 impl State {
     pub fn new(surface: &'static Surface) -> State {
         let start = |owner: &Owner| match &surface.start {
             Some(l) if owner.modes.iter().any(|&m| l.mode == Some(m)) => {
-                Shown { mode: l.mode, page: l.page, shift: false }
+                Shown { mode: l.mode, page: l.page, page_assumed: l.page.is_some(), shift: false }
             }
             _ => Shown::default(),
         };
+        let owners: Vec<Shown> = surface.owners.iter().map(start).collect();
+        let pages = owners.iter().map(|s| s.mode.zip(s.page).into_iter().collect()).collect();
         State {
             surface,
             seq: 0,
             rows: vec![None; surface.layers.len()],
             turned: vec![(0, 0.0); surface.layers.len()],
-            owners: surface.owners.iter().map(start).collect(),
+            owners,
+            pages,
+            own: false,
         }
+    }
+
+    pub fn own(&mut self) {
+        self.own = true;
+        self.owners.iter_mut().for_each(|s| s.page_assumed = false);
     }
 
     /// Records `event`, received at `time`, and returns the owner whose [`Shown`] it changed. A
@@ -103,15 +119,24 @@ impl State {
         if owner.shift == Some(object) {
             shown.shift = value == Value::Button(true);
         } else if pressed && let Some(bank) = &self.surface.selects[row] {
-            if shown.mode != bank.mode || bank.page.is_some() {
-                shown.page = bank.page;
+            if let Some(page) = bank.page {
+                (shown.page, shown.page_assumed) = (Some(page), false);
+            } else if shown.mode != bank.mode {
+                // ASSUMPTION, unobserved: a pad mode comes up on the page it was left on, else page 1.
+                let paged =
+                    bank.mode.is_some_and(|m| owner.modes.iter().zip(&owner.pages).any(|(&o, &n)| o == m && n > 0));
+                shown.page = paged.then(|| bank.mode.and_then(|m| self.pages[owner_id].get(&m).copied()).unwrap_or(0));
+                shown.page_assumed = paged && !self.own;
             }
             shown.mode = bank.mode;
         } else if pressed && let Some(mode) = layer.mode {
-            shown.page = layer.page;
+            (shown.page, shown.page_assumed) = (layer.page, false);
             shown.mode = Some(mode);
         } else if pressed && self.surface.objects[object].rows.iter().any(|&r| self.surface.selects[r].is_some()) {
-            (shown.mode, shown.page) = (None, None);
+            (shown.mode, shown.page, shown.page_assumed) = (None, None, false);
+        }
+        if let Some((mode, page)) = shown.mode.zip(shown.page) {
+            self.pages[owner_id].insert(mode, page);
         }
         let changed = shown != self.owners[owner_id];
         self.owners[owner_id] = shown;
@@ -243,16 +268,35 @@ mod tests {
     }
 
     #[test]
-    fn a_mode_button_shows_its_mode_keeping_the_page_only_where_the_mode_stays() {
+    fn a_mode_button_shows_its_mode_on_the_page_it_was_left_on_assumed_until_a_press_tells_it() {
         let mut state = State::new(flx10());
         // PAGE ▶ in HOT CUE (90 2C), then HOT CUE (90 1B, MML p.6 P9).
         fed(&mut state, &[note(0, 0x2C, 0x7F), note(0, 0x1B, 0x7F)]);
         assert_eq!(written(&state, "deck1.pad1").unwrap(), "deck1.pad1 (hot-cue page-2)");
         // SAMPLER (90 22, MML p.6 P12), then PAGE ◀ in it (90 27).
+        let deck = flx10().objects[object("deck1.pad1")].owner;
+        assert!(!state.shown(deck).page_assumed, "PAGE told it");
         fed(&mut state, &[note(0, 0x22, 0x7F)]);
-        assert!(unknown(&state, "page"));
+        assert_eq!(written(&state, "deck1.pad1").unwrap(), "deck1.pad1 (sampler page-1)", "never seen: page 1");
+        assert!(state.shown(deck).page_assumed);
         fed(&mut state, &[note(0, 0x27, 0x7F)]);
         assert_eq!(written(&state, "deck1.pad1").unwrap(), "deck1.pad1 (sampler page-1)");
+        assert!(!state.shown(deck).page_assumed, "PAGE confirmed it");
+        // HOT CUE again: the page it was left on, assumed until a pad of its page 1, 97 00, corrects it.
+        fed(&mut state, &[note(0, 0x1B, 0x7F)]);
+        assert_eq!(written(&state, "deck1.pad1").unwrap(), "deck1.pad1 (hot-cue page-2)");
+        assert!(state.shown(deck).page_assumed);
+        fed(&mut state, &[note(7, 0x00, 0x7F)]);
+        assert_eq!(written(&state, "deck1.pad1").unwrap(), "deck1.pad1 (hot-cue page-1)");
+        assert!(!state.shown(deck).page_assumed);
+        let mut own = State::new(flx10());
+        own.own();
+        fed(&mut own, &[note(0, 0x22, 0x7F)]);
+        assert_eq!(
+            (own.shown(deck).page, own.shown(deck).page_assumed),
+            (Some(0), false),
+            "its own device assumes nothing"
+        );
         // HOT CUE long press, 90 4B: no bank.
         fed(&mut state, &[note(0, 0x4B, 0x7F)]);
         assert!(unknown(&state, "pad mode"));
@@ -280,9 +324,9 @@ mod tests {
         // PAGE ▶ in HOT CUE (90 2C), SHIFT + PAGE ◀ in it (90 01, MML p.6 P13; MAN p.18 item 17).
         fed(&mut state, &[note(0, 0x2C, 0x7F), note(0, 0x3F, 0x7F), note(0, 0x01, 0x7F), note(0, 0x3F, 0x00)]);
         assert_eq!(written(&state, "deck1.pad1").unwrap(), "deck1.pad1 (hot-cue page-2)");
-        // SAMPLER (90 22, MML p.6 P12), SHIFT + PAGE ▶ in HOT CUE (90 09, P14): a new mode, no page.
+        // SAMPLER (90 22, MML p.6 P12), SHIFT + PAGE ▶ in HOT CUE (90 09, P14): HOT CUE again, on the page it was left on.
         fed(&mut state, &[note(0, 0x22, 0x7F), note(0, 0x3F, 0x7F), note(0, 0x09, 0x7F)]);
-        assert!(unknown(&state, "page"));
+        assert_eq!(written(&state, "deck1.pad1").unwrap(), "deck1.pad1 (hot-cue page-2)");
     }
 
     #[test]

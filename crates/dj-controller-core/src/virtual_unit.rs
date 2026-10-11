@@ -1,8 +1,8 @@
 // Concern: a unit with no hardware: a gesture on a physical control as the message its model sends, received by its session | Non-concern: where gestures come from | IO: (gesture) -> messages received
 //! The unit keeps no state of its own: a gesture's row is the one its session last heard the owner
 //! on, its SHIFT, pad mode and
-//! page; a pad mode just entered, its page not yet heard, is on page 1 (assumed, unobserved on any
-//! unit). Any other layer (`long-press`, `vinyl-on`, a shared control's deck) the gesture names.
+//! page, which its session, the device itself, knows: a pad mode comes up on the page it was left
+//! on, page 1 if never (assumed, unobserved on any unit). Any other layer (`long-press`, `vinyl-on`, a shared control's deck) the gesture names.
 
 use crate::decode::Value;
 use crate::error::Error;
@@ -50,7 +50,10 @@ impl VirtualUnit {
     pub fn new(session: &Session) -> Result<VirtualUnit, Error> {
         let model = session.model();
         match &model.virtual_unit {
-            Some(facts) => Ok(VirtualUnit { session: session.clone(), facts }),
+            Some(facts) => {
+                session.own_device();
+                Ok(VirtualUnit { session: session.clone(), facts })
+            }
             None => refused(format!("{} has no virtual unit: its model file states no `virtual`", model.name)),
         }
     }
@@ -380,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn a_pad_hit_goes_on_the_pad_mode_and_page_its_buttons_chose_and_on_page_1_of_a_mode_just_entered() {
+    fn a_pad_hit_goes_on_the_pad_mode_and_page_its_buttons_chose_a_mode_coming_up_on_the_page_it_was_left_on() {
         let (session, unit) = unit();
         let gestures = [
             ("deck1.pad1", Gesture::Hit(100)),
@@ -418,7 +421,7 @@ mod tests {
                 message("deck1.pad2", "hot-cue page-1", 9),
                 message("deck1.pad-mode.sampler", "", 0x7F),
                 message("deck1.pad2", "hot-cue page-1", 0),
-                message("deck1.pad2", "sampler page-1", 9),
+                message("deck1.pad2", "sampler page-2", 9),
             ]
         );
     }

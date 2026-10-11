@@ -70,7 +70,7 @@ export function tree(controller: object): Tree {
 
 /** A seat with no owner of its own counts any owner's SHIFT. */
 export function shownOf(seat: Seat, owners: readonly Owner[]): Shown<string, number> {
-  return seat.owner?.mode ?? { mode: undefined, page: undefined, shift: owners.some((o) => o.mode.shift) }
+  return seat.owner?.mode ?? { mode: undefined, page: undefined, pageAssumed: false, shift: owners.some((o) => o.mode.shift) }
 }
 
 /** `seat`'s bank on `shift`'s layer now; undefined while its pad mode or page is unknown. */

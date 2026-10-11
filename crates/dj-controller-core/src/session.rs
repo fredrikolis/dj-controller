@@ -306,6 +306,10 @@ impl Session {
         self.0.model
     }
 
+    pub(crate) fn own_device(&self) {
+        self.0.core.borrow_mut().state.own();
+    }
+
     /// Whether `other` is this session.
     pub fn same(&self, other: &Session) -> bool {
         Rc::ptr_eq(&self.0, &other.0)

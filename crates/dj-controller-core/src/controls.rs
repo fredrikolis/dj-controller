@@ -539,9 +539,12 @@ impl ValueOut {
 
 /// What an owner of pad modes shows: its pad mode and page where the device has told them, and shift.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Shown<M, P> {
     pub mode: Option<M>,
     pub page: Option<P>,
+    /// The page is taken, not told, until a pad or PAGE press names it.
+    pub page_assumed: bool,
     pub shift: bool,
 }
 
@@ -558,7 +561,12 @@ impl Owner {
 
     pub fn shown<M: Indexed, P: Indexed>(&self) -> Shown<M, P> {
         let shown = self.session.shown(self.index);
-        Shown { mode: shown.mode.map(M::at), page: shown.page.map(P::at), shift: shown.shift }
+        Shown {
+            mode: shown.mode.map(M::at),
+            page: shown.page.map(P::at),
+            page_assumed: shown.page_assumed,
+            shift: shown.shift,
+        }
     }
 
     pub fn changes<M: Indexed, P: Indexed>(&self) -> Feed<Shown<M, P>> {

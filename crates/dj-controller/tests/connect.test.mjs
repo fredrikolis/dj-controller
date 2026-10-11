@@ -107,8 +107,8 @@ test('a hit carries its identity, 0-based, and the paged views follow the mode t
   device.input.receive(`${PAD1_SAMPLER} 7F`)
   assert.equal((await physical.next()).value.mode, 'sampler')
   assert.equal((await sampler.next()).value.mode, 'sampler')
-  assert.deepEqual({ ...(await modes.next()).value }, { mode: 'sampler', page: 0, shift: false }, 'hot cue was already showing')
-  assert.deepEqual({ ...deck.mode }, { mode: 'sampler', page: 0, shift: false })
+  assert.deepEqual({ ...(await modes.next()).value }, { mode: 'sampler', page: 0, pageAssumed: false, shift: false }, 'hot cue was already showing')
+  assert.deepEqual({ ...deck.mode }, { mode: 'sampler', page: 0, pageAssumed: false, shift: false })
 
   const written = device.output.next(`${PAD1_SAMPLER} 05`)
   await deck.pads[0].colour(5)
@@ -123,7 +123,8 @@ test('a hit carries its identity, 0-based, and the paged views follow the mode t
 
 test('a physical pad takes a colour right after connect, on the bank the device starts in', async () => {
   const { device, flx } = await connected()
-  assert.deepEqual({ ...flx.decks[0].mode }, { mode: 'hotCue', page: 0, shift: false })
+  // The start bank is the model file's, taken until a press tells it.
+  assert.deepEqual({ ...flx.decks[0].mode }, { mode: 'hotCue', page: 0, pageAssumed: true, shift: false })
   const written = device.output.next(`${PAD1_HOT_CUE.deck1} 01`)
   await flx.decks[0].pads[0].colour(1)
   await written
@@ -138,26 +139,29 @@ test('a physical pad writes the bank PAGE and shifted mode presses show, SHIFT +
   const sent = device.output.sent.length
   // PAGE right in HOT CUE (MML p.6 P14; p.7 *1): page 2 shows, no pad pressed.
   device.input.receive(`${PAGE_RIGHT_HOT_CUE} 7F`)
-  assert.deepEqual({ ...deck.mode }, { mode: 'hotCue', page: 1, shift: false })
+  assert.deepEqual({ ...deck.mode }, { mode: 'hotCue', page: 1, pageAssumed: false, shift: false })
   assert.equal(pad.told, 0, 'page 2 holds what the connect sync told it')
   const page2 = device.output.next('97 08 05')
   await pad.colour(5)
   await page2
   device.input.receive(`${PAGE_LEFT_HOT_CUE} 7F`)
   assert.equal(pad.told, 1, 'the unit keeps each bank\'s colours (docs/research/flx10-observed-pads.md), so page 1 shows its own again')
-  // SAMPLER (90 22, MML p.6 P12) and back to HOT CUE (90 1B, P9): which page HOT CUE returns to is unobserved.
+  // SAMPLER (90 22, MML p.6 P12) and back to HOT CUE (90 1B, P9): which page HOT CUE returns to is unobserved, so the page it was left on is assumed.
   device.input.receive('90 22 7F')
+  assert.deepEqual({ ...deck.mode }, { mode: 'sampler', page: 0, pageAssumed: true, shift: false })
   device.input.receive('90 1B 7F')
-  assert.equal(pad.told, undefined)
+  assert.deepEqual({ ...deck.mode }, { mode: 'hotCue', page: 0, pageAssumed: true, shift: false })
+  assert.equal(pad.told, 1)
   device.input.receive(`${PAGE_LEFT_HOT_CUE} 7F`)
+  assert.equal(deck.mode.pageAssumed, false, 'a PAGE press tells it')
   assert.equal(pad.told, 1)
   assert.equal(device.output.sent.length, sent + 1, 'no bank change repaints a pad')
   // SHIFT + PAGE right in HOT CUE, 90 09 (MML p.6 P14), switches the jog display alone (MAN p.18 item 17).
   for (const message of [`${SHIFT} 7F`, '90 09 7F', `${SHIFT} 00`]) device.input.receive(message)
-  assert.deepEqual({ ...deck.mode }, { mode: 'hotCue', page: 0, shift: false })
+  assert.deepEqual({ ...deck.mode }, { mode: 'hotCue', page: 0, pageAssumed: false, shift: false })
   // SHIFT + BEAT JUMP (90 6D, MML p.6 P11; MAN p.18 item 15) is Beat Loop; PAGE right in it is 90 32.
   for (const message of [`${SHIFT} 7F`, '90 6D 7F', `${SHIFT} 00`, '90 32 7F']) device.input.receive(message)
-  assert.deepEqual({ ...deck.mode }, { mode: 'beatLoop', page: 1, shift: false })
+  assert.deepEqual({ ...deck.mode }, { mode: 'beatLoop', page: 1, pageAssumed: false, shift: false })
   const beatLoop = device.output.next('97 68 09')
   await pad.colour(9)
   await beatLoop
@@ -172,7 +176,7 @@ test('every PAGE press streams with the mode it was pressed in, also one that le
   device.input.receive('90 22 7F', 1)
   for (const [time, value] of [[2, '7F'], [3, '00'], [4, '7F'], [5, '00']]) device.input.receive(`90 2F ${value}`, time)
   for (const time of [2, 4]) assert.deepEqual({ ...(await presses.next()).value, released: undefined }, { deck: 0, mode: 'sampler', shift: false, time, released: undefined })
-  assert.deepEqual({ ...deck.mode }, { mode: 'sampler', page: 1, shift: false })
+  assert.deepEqual({ ...deck.mode }, { mode: 'sampler', page: 1, pageAssumed: false, shift: false })
   await flx.close()
 })
 
@@ -424,10 +428,10 @@ test('a stream that ends takes its listeners off the signal it was given', async
   assert.equal(signal.listening('abort'), 0)
 })
 
-test('writes reject: out of range, a page the device has not told, when the port fails, once closed', async () => {
+test('writes reject: out of range, a bank the device has not told, when the port fails, once closed', async () => {
   const { device, flx } = await connected()
-  // SAMPLER, 90 22 (MML p.6 P12): its page is not told until a PAGE or pad press.
-  device.input.receive('90 22 7F')
+  // HOT CUE held long, 90 4B (MML p.6 P9), names no bank: neither mode nor page is known after it.
+  device.input.receive('90 4B 7F')
   await rejectsWith(flx.decks[0].pads[0].colour(1), 'unshown')
   await rejectsWith(flx.decks[0].modes.hotCue.pages[0].pads[0].colour(200), 'refused')
   await rejectsWith(flx.decks[0].display.bpm.set(128.05), 'refused')

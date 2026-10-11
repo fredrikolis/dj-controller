@@ -173,8 +173,8 @@ export interface Lease extends AsyncDisposable {
   readonly ended: Promise<void>;
 }
 
-/** The core's `Shown<M, P>`: pad mode and page where the device has told them, and shift. */
-export type Shown<Mode, Page> = { readonly mode: Mode | undefined; readonly page: Page | undefined; readonly shift: boolean };
+/** The core's `Shown<M, P>`: pad mode and page, and shift. The device tells neither mode nor page but by its presses, so `pageAssumed` says where the page is taken, not told: at connect the model file's start bank, and after a pad mode button the page that mode was last seen on, page 1 if never (an ASSUMPTION about the firmware, unobserved on any unit). A pad or PAGE press tells the page and clears it; a wrong one is corrected then. A virtual controller is its own device and assumes none. A write to a control lands on the bank assumed. `mode` and `page` are undefined only after a press that names no bank. */
+export type Shown<Mode, Page> = { readonly mode: Mode | undefined; readonly page: Page | undefined; readonly pageAssumed: boolean; readonly shift: boolean };
 
 "#;
 
