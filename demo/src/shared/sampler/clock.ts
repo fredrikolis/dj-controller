@@ -5,19 +5,9 @@ import type { SamplerState } from './sampler-state.ts'
 export type DeckClock = { readonly playing: boolean; readonly bpm: number; readonly beat: number }
 
 // ASSUMPTION: RB pp.196-198 give none; renders as key lock's.
-export const BPM_STEP = 1
-export const BPM_RANGE = [60, 200] as const
 export const RENDER_RANGE = [72, 288] as const
-export const GAIN_RANGE = [-12, 12] as const
 
 const clamp = (value: number, [low, high]: readonly [number, number]): number => Math.min(high, Math.max(low, value))
-
-// RB p.198. ASSUMPTION: off under BPM SYNC.
-export function steppedBpm(s: SamplerState, direction: -1 | 1): SamplerState {
-  if (s.sync) return s
-  const bpm = clamp(s.bpm + direction * BPM_STEP, BPM_RANGE)
-  return bpm === s.bpm ? s : { ...s, bpm }
-}
 
 export const bpmOf = (s: Pick<SamplerState, 'bpm' | 'sync'>, master: DeckClock): number => (s.sync ? master.bpm : s.bpm)
 
@@ -37,7 +27,4 @@ export function loopOffset(s: Pick<SamplerState, 'quantize'>, master: DeckClock,
 
 export const gainOf = (db: number): number => 10 ** (db / 20)
 
-// ASSUMPTION: the faders' law.
 export const volumeOf = (position: number): number => faderGain(position)
-
-export const clampedGain = (db: number): number => clamp(db, GAIN_RANGE)

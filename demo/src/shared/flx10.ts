@@ -1,4 +1,4 @@
-// Concern: the DDJ-FLX10 as the demo plays it: its model name, controller type, and the page's decks on its decks 1 and 2, channels 1 and 2 | Non-concern: what any control does | IO: none
+// Concern: the DDJ-FLX10 as the demo plays it, connected or virtual: its model name, controller type, the page's decks on its decks 1 and 2 | Non-concern: what any control does | IO: none
 import type { Controllers } from 'dj-controller'
 import type { DeckIndex } from './decks.ts'
 

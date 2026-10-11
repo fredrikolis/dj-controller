@@ -1,1 +1,1 @@
-Concern: two static pages, the basics example and a desk of two SVA decks, played from a DDJ-FLX10 or the page | Non-concern: the driver, consumed as its npm package | IO: (controller, page) -> audio
+Concern: two static pages, the basics example and a desk of two SVA decks, played from a DDJ-FLX10 or its virtual twin | Non-concern: the driver, consumed as its npm package | IO: controller -> audio

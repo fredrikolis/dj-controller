@@ -1,15 +1,17 @@
-// Concern: the beat jump feature: each deck's 4 BEAT JUMP and BEAT JUMP pads from the page or the FLX10 | Non-concern: the rules (jump.ts) | IO: (FeatureHandles) -> decks
-import './beat-jump.css'
+// Concern: the beat jump feature: each deck's 4 BEAT JUMP and BEAT JUMP pads from the FLX10, each pad's jump on the twin | Non-concern: the rules (jump.ts) | IO: (FeatureHandles) -> decks
 import { DECKS } from '../../shared/decks.ts'
 import type { Feature } from '../../shared/feature.ts'
+import { beatsText } from '../../shared/fx/beats.ts'
 import { playBeatJump } from './hardware.ts'
-import { showBeatJump } from './screen.ts'
+import { padJump } from './jump.ts'
 
-export const beatJump: Feature = async ({ desk, controller, shifts, view, signal }) => {
-  if (controller === null) {
-    for (const i of DECKS) showBeatJump(view.decks[i], desk.decks[i], shifts[i], signal)
-    return
-  }
+const jumpText = (page: number, pad: number): string => {
+  const { beats, direction } = padJump(page, pad)
+  return direction < 0 ? `◀ ${beatsText(beats)}` : `${beatsText(beats)} ▶`
+}
+
+export const beatJump: Feature = async ({ desk, controller, text, signal }) => {
+  for (const i of DECKS) text.labelPads(controller.decks[i].modes.beatJump, jumpText)
   try {
     await Promise.all(DECKS.flatMap((i) => playBeatJump(controller.decks[i], desk.decks[i], signal)))
   } catch (err) {

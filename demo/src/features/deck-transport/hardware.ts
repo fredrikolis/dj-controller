@@ -12,16 +12,16 @@ function shown(controls: Flx10Deck, deck: Deck): Write[] {
   const elapsed = Math.max(0, Math.floor(deck.position / deck.sampleRate))
   const playing = s.playing
   const cue = s.previewing || (!s.playing && s.loaded && atCue(s, deck.position))
-  // MML p.7: info 0 shown, time mode 0 elapsed. ASSUMPTION: the SHIFT layers light as PLAY and CUE.
+  // MML p.7: time mode 0 elapsed. ASSUMPTION: the SHIFT layers light as PLAY and CUE.
   return [
     { led: controls.playPause, on: playing },
     { led: controls.shifted.playPause, on: playing },
     { led: controls.cue, on: cue },
     { led: controls.shifted.cue, on: cue },
-    // ASSUMPTION: lit as SLIP's.
     { led: controls.slipReverse, on: false },
     { led: controls.shifted.slipReverse, on: s.reverse },
-    { out: display.hideInfo, value: 0 },
+    // MML p.7: hide 127. ASSUMPTION: hidden with no track.
+    { out: display.hideInfo, value: s.loaded ? 0 : 127 },
     { out: display.timeMode, value: 0 },
     { out: display.time.minutes, value: Math.floor(elapsed / 60) % 100 },
     { out: display.time.seconds, value: elapsed % 60 },

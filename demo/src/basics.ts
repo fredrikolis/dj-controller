@@ -1,5 +1,5 @@
-// Concern: the shortest complete use of dj-controller, read first: connect, PLAY, CUE, TEMPO, faders, crossfader, the twin | Non-concern: the full desk (features/) | IO: (click, controller) -> audio
-import { connect, type Absolute, type CloseReason } from 'dj-controller'
+// Concern: the shortest complete use of dj-controller: a virtual controller, connect, PLAY, CUE, TEMPO, faders, crossfader, the twin | Non-concern: the full desk (features/) | IO: (controller) -> audio
+import { connect, virtual, type Absolute, type CloseReason } from 'dj-controller'
 import { Twin, theme } from 'dj-controller/twin'
 import { find } from './shared/dom.ts'
 import { DECKS } from './shared/decks.ts'
@@ -9,17 +9,10 @@ import { logger } from './shared/logger.ts'
 import { audioFor, pageLife, reporter } from './shared/page.ts'
 import type { Deck } from './shared/transport/deck.ts'
 
-/** Plays the desk from the page while `controller` is null. */
-export type Play = (controller: Flx10 | null, signal: AbortSignal) => Promise<void>
+/** Plays the desk from `controller` until `signal` aborts or it closes. */
+export type Play = (controller: Flx10, signal: AbortSignal) => Promise<void>
 
-export type ConnectPage = { readonly button: HTMLButtonElement; readonly twin: Twin; readonly root: HTMLElement; readonly report: (err: unknown) => void }
-
-function showConnected({ button, twin, root }: ConnectPage, flx: Flx10 | null): void {
-  twin.controller = flx
-  twin.hidden = flx === null
-  button.hidden = flx !== null
-  root.toggleAttribute('data-connected', flx !== null)
-}
+export type ConnectPage = { readonly button: HTMLButtonElement; readonly twin: Twin; readonly report: (err: unknown) => void }
 
 async function reporting(work: Promise<void>, report: (err: unknown) => void): Promise<void> {
   try {
@@ -37,10 +30,21 @@ function clicked(button: HTMLButtonElement, signal: AbortSignal): Promise<void> 
   })
 }
 
-/** A failed connect is reported and the button offered again. */
+async function closed(flx: Flx10): Promise<void> {
+  try {
+    await flx.close()
+  } catch (err) {
+    logger.error('the controller did not close', err)
+  }
+}
+
+/** Plays a virtual FLX10 on the twin, by pointer and keys, until the button connects a real one: a failed connect is reported and the button offered again. */
 async function untilConnected(page: ConnectPage, play: Play, signal: AbortSignal): Promise<Flx10 | null> {
   const offline = new AbortController()
-  const running = reporting(play(null, AbortSignal.any([signal, offline.signal])), page.report)
+  const unplugged = await virtual(MODEL, { signal })
+  page.twin.controller = unplugged
+  page.button.hidden = false
+  const running = reporting(play(unplugged, AbortSignal.any([signal, offline.signal])), page.report)
   try {
     for (;;) {
       await clicked(page.button, signal)
@@ -58,6 +62,7 @@ async function untilConnected(page: ConnectPage, play: Play, signal: AbortSignal
   } finally {
     offline.abort()
     await running
+    await closed(unplugged)
   }
 }
 
@@ -71,7 +76,8 @@ async function closing(flx: Flx10, session: AbortController): Promise<CloseReaso
 
 async function whileConnected(page: ConnectPage, flx: Flx10, play: Play, signal: AbortSignal): Promise<void> {
   const session = new AbortController()
-  showConnected(page, flx)
+  page.twin.controller = flx
+  page.button.hidden = true
   try {
     const [reason] = await Promise.all([closing(flx, session), play(flx, AbortSignal.any([signal, session.signal]))])
     if (reason === 'unplugged') page.report(new Error(`the ${flx.model} is unplugged`))
@@ -79,16 +85,11 @@ async function whileConnected(page: ConnectPage, flx: Flx10, play: Play, signal:
     if (!signal.aborted) page.report(new Error(`the ${flx.model} stopped`, { cause: err }))
   } finally {
     session.abort()
-    showConnected(page, null)
-    try {
-      await flx.close()
-    } catch (err) {
-      logger.error('the controller did not close', err)
-    }
+    await closed(flx)
   }
 }
 
-/** Plays from the page, then from each FLX10 the button connects while it stays. */
+/** Plays a virtual FLX10 on the twin, then each real one the button connects while it stays, the same `play` on both. */
 export async function playConnected(page: ConnectPage, play: Play, signal: AbortSignal): Promise<void> {
   while (!signal.aborted) {
     const flx = await untilConnected(page, play, signal)
@@ -141,7 +142,7 @@ export async function startBasics(): Promise<void> {
   const signal = pageLife()
   document.adoptedStyleSheets = [...document.adoptedStyleSheets, theme]
   const report = reporter(find('#error', HTMLElement, document), signal)
-  const page: ConnectPage = { button: find('#connect', HTMLButtonElement, document), twin: find('dj-controller-twin', Twin, document), root: document.body, report }
+  const page: ConnectPage = { button: find('#connect', HTMLButtonElement, document), twin: find('dj-controller-twin', Twin, document), report }
   try {
     const desk = await createDesk(audioFor(signal), signal)
     await Promise.all(desk.decks.map((deck) => deck.load(signal)))
@@ -149,10 +150,7 @@ export async function startBasics(): Promise<void> {
       deck.update({ masterTempo: false })
       deck.unlock()
     }
-    const play: Play = async (flx, s) => {
-      if (flx) await playBasics(flx, desk, s)
-    }
-    await playConnected(page, play, signal)
+    await playConnected(page, (flx, s) => playBasics(flx, desk, s), signal)
   } catch (err) {
     if (!signal.aborted) report(err)
   }

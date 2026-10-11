@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { KINDS, LISTS, NAMES, paramText, TARGET_LABELS } from './effects.ts'
-import { automatic, beatPressed, startFrom, depthSet, displayOf, fxBpm, NO_TRACK_BPM, phaseOf, refusal, releaseBeats, releaseHeld, releaseTyped, selected, START, stepped, tappedAt, targeted, toggled, type BpmSources } from './unit-state.ts'
+import { automatic, beatPressed, depthSet, displayOf, fxBpm, NO_TRACK_BPM, phaseOf, refusal, releaseHeld, selected, START, stepped, tappedAt, targeted, toggled, type BpmSources } from './unit-state.ts'
 
 const from: BpmSources = { decks: [140, 150], sampler: 128, master: 1 }
 
@@ -55,14 +55,11 @@ test('T3: SHIFT+BEAT ▶ enters TAP keeping the BPM, taps set it, SHIFT+BEAT ◀
   assert.equal(tappedAt(s, 9000, 100).tapBpm, 100)
 })
 
-test('T5: the Release FX held turns the unit off and acts; let go, neither; its type and beats', () => {
+test('T5: the Release FX held turns the unit off and acts; let go, neither', () => {
   const held = releaseHeld(toggled(START), true)
   assert.deepEqual([held.on, held.release.held], [false, true])
   const free = releaseHeld(held, false)
   assert.deepEqual([free.on, free.release.held], [false, false])
-  assert.equal(releaseTyped(START, 'vBrake').release.type, 'vBrake')
-  assert.equal(releaseBeats(START, 4).release.beats, 4)
-  assert.throws(() => releaseBeats(START, 3), RangeError)
 })
 
 test('T6: a parameter past the 32 s ring or the 20 s delay at the FX BPM is refused', () => {
@@ -74,8 +71,8 @@ test('T6: a parameter past the 32 s ring or the 20 s delay at the FX BPM is refu
   assert.notEqual(refusal(echo16, 47), null)
   assert.equal(refusal({ ...selected(START, 'mtDelay'), params: { ...START.params, mtDelay: 16 } }, 47), null)
   assert.equal(refusal({ ...selected(START, 'flanger'), params: { ...START.params, flanger: 64 } }, 20), null)
-  assert.notEqual(refusal(releaseBeats(releaseTyped(START, 'vBrake'), 16), 29), null)
-  assert.equal(refusal(releaseBeats(releaseTyped(START, 'vBrake'), 16), 30), null)
+  assert.notEqual(refusal({ ...START, release: { type: 'vBrake', beats: 16, held: false } }, 29), null)
+  assert.equal(refusal({ ...START, release: { type: 'vBrake', beats: 16, held: false } }, 30), null)
   assert.equal(refusal(roll16, 0), null)
 })
 
@@ -83,13 +80,6 @@ test('T8: the display carries the name, the parameter as written, the BPM in hun
   const s = stepped(targeted(selected(START, 'enigmaJet'), 'master'), 1)
   assert.deepEqual(displayOf(s, 128.004), { name: NAMES.enigmaJet, parameter: paramText(KINDS.enigmaJet, 2), bpm: 12800, mode: 'AUTO', channel: TARGET_LABELS.master })
   assert.equal(displayOf(tappedAt(START, 0, 99.5), 99.5).mode, 'TAP')
-})
-
-test('?fx= starts the panel at an effect, a target and ON in any order, and refuses any other part', () => {
-  const s = startFrom(['on', 'channel1', 'echo'])
-  assert.deepEqual([s.effect, s.target, s.on], ['echo', 'channel1', true])
-  assert.equal(startFrom([]), START)
-  assert.throws(() => startFrom(['echo', 'loud']), RangeError)
 })
 
 test('T9: with a PAD FX pad held, BEAT leaves the unit\'s parameter; with none it steps; SHIFT acts either way', () => {

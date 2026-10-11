@@ -16,7 +16,7 @@ export type SamplerState = {
   readonly volume: number
 }
 
-// ASSUMPTION: the songs' BPM; RB p.198 step 3 turns BPM SYNC on; Q as the decks'.
+// ASSUMPTION: the songs' BPM; RB p.198 step 3 turns BPM SYNC on; Q as the decks'. BPM, SYNC, Q and GAIN stay as they start: the FLX10 has no control for them (MAN pp.83-84).
 export const SAMPLER_START: SamplerState = { bank: 0, voices: Array.from({ length: POSITIONS }, () => null), bpm: 144, sync: false, quantize: true, gain: 0, volume: 1 }
 
 export function withoutVoice(s: SamplerState, id: number): SamplerState {

@@ -7,7 +7,10 @@ import { changes, createStore } from '../../shared/store.ts'
 import { follow } from '../../shared/streams.ts'
 import type { KeyShift } from './actions.ts'
 import { renderAhead } from './ahead.ts'
-import { chosenCue, PAD_PITCHES } from './semitones.ts'
+import { slotOf } from '../../shared/hot-cues/hot-cue.ts'
+import { slotName } from '../../shared/transport/hot-cue-state.ts'
+import type { TwinText } from '../../shared/twin-text.ts'
+import { chosenCue, PAD_PITCHES, pitchOf } from './semitones.ts'
 import { jogScreenKey, keyboardPlan, pitchPlan } from './lights.ts'
 
 function labelled(out: ValueOut, label: string): number {
@@ -19,7 +22,10 @@ function labelled(out: ValueOut, label: string): number {
 
 const pageIn = (controls: Flx10Deck, mode: 'keyShift' | 'keyboard'): number | null => (controls.mode.mode === mode ? (controls.mode.page ?? null) : null)
 
-function keepLights(controls: Flx10Deck, keys: KeyShift, signal: AbortSignal): Promise<void>[] {
+const semitones = (pitch: number): string => (pitch > 0 ? `+${pitch}` : pitch < 0 ? `−${-pitch}` : '0')
+
+function keepLights(controls: Flx10Deck, keys: KeyShift, text: TwinText, signal: AbortSignal): Promise<void>[] {
+  text.labelPads(controls.modes.keyShift, (page, pad) => semitones(pitchOf(page, pad)))
   const showKeyShift = showLights(signal)
   const showKeyboard = showLights(signal)
   // MML P1-P8 9p 70-7F and 40-4F, SHIFT on p+1; P13/P14 9n 2B/33, 28/30.
@@ -35,6 +41,8 @@ function keepLights(controls: Flx10Deck, keys: KeyShift, signal: AbortSignal): P
     const shiftPage = pageIn(controls, 'keyShift')
     const keyboardPage = pageIn(controls, 'keyboard')
     const pitchPage = shiftPage ?? (choosing ? null : keyboardPage)
+    // MAN p.84: Keyboard's pads choose a hot cue, then play it at their pitches.
+    text.labelPads(controls.modes.keyboard, (page, pad) => (choosing ? slotName(slotOf(page, pad)) : semitones(pitchOf(page, pad))))
     pitches.update(() => (pitchPage === null ? [] : PAD_PITCHES.flatMap((page, p) => (p === pitchPage ? page : []))))
     await Promise.all([showKeyShift(pitchPlan(views.keyShift, asked, shiftPage)), showKeyboard(keyboardPlan(views.keyboard, s, asked, choosing, keyboardPage))])
   }
@@ -53,7 +61,7 @@ function shown(controls: Flx10Deck, keys: KeyShift): Write[] {
   ]
 }
 
-export function playKeyShift(controls: Flx10Deck, keys: KeyShift, signal: AbortSignal): Promise<void>[] {
+export function playKeyShift(controls: Flx10Deck, keys: KeyShift, text: TwinText, signal: AbortSignal): Promise<void>[] {
   return [
     // MML p.2 D8: 9n 65, SHIFT 9n 64; the long press is master tempo's.
     follow(controls.keySync.presses({ signal }), (press) => (press.layer !== '' ? undefined : press.shift ? keys.reset() : keys.keySync()), signal),
@@ -71,7 +79,7 @@ export function playKeyShift(controls: Flx10Deck, keys: KeyShift, signal: AbortS
         signal,
       ),
     ),
-    ...keepLights(controls, keys, signal),
+    ...keepLights(controls, keys, text, signal),
     showEachFrame(() => shown(controls, keys), signal),
   ]
 }

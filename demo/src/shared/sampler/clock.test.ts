@@ -1,19 +1,10 @@
 // Concern: checks the sampler spec's T4 and T6: [-]/[+], BPM SYNC to the master deck, a loop's render BPM and rate, Q's start, GAIN and SAMPLER VOL as gains | Non-concern: Web Audio | IO: none
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { bpmOf, BPM_RANGE, BPM_STEP, gainOf, loopOffset, rateOf, renderBpmOf, RENDER_RANGE, steppedBpm, volumeOf, type DeckClock } from './clock.ts'
+import { bpmOf, gainOf, loopOffset, rateOf, renderBpmOf, RENDER_RANGE, volumeOf, type DeckClock } from './clock.ts'
 import { SAMPLER_START } from './sampler-state.ts'
 
 const deck = (playing: boolean, bpm: number, beat = 0): DeckClock => ({ playing, bpm, beat })
-
-test('T4: [-]/[+] step the BPM within its range and do nothing under BPM SYNC', () => {
-  assert.equal(steppedBpm(SAMPLER_START, 1).bpm, SAMPLER_START.bpm + BPM_STEP)
-  assert.equal(steppedBpm(SAMPLER_START, -1).bpm, SAMPLER_START.bpm - BPM_STEP)
-  assert.equal(steppedBpm({ ...SAMPLER_START, bpm: BPM_RANGE[1] }, 1).bpm, BPM_RANGE[1])
-  assert.equal(steppedBpm({ ...SAMPLER_START, bpm: BPM_RANGE[0] }, -1).bpm, BPM_RANGE[0])
-  const synced = { ...SAMPLER_START, sync: true }
-  assert.equal(steppedBpm(synced, 1), synced)
-})
 
 test('T4: BPM SYNC takes the master deck\'s BPM, playing or not; without it the sampler keeps its own', () => {
   assert.equal(bpmOf({ bpm: 120, sync: false }, deck(true, 150)), 120)

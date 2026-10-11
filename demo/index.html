@@ -1,11 +1,11 @@
-<!-- Concern: the demo page's markup: connect, the twin, the deck, mixer, effects and sampler sections the features fill | Non-concern: behaviour (src/main.ts), look (assets/styles/page.css) | IO: none -->
+<!-- Concern: the demo page's markup: connect and the twin, which every feature shows on | Non-concern: behaviour (src/main.ts), look (assets/styles/page.css) | IO: none -->
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="description" content="Two decks of scalable vector audio, played from a Pioneer DDJ-FLX10 over Web MIDI or from the page." />
+    <meta name="description" content="Two decks of scalable vector audio, played from a Pioneer DDJ-FLX10 over Web MIDI, or from its twin on the page with no hardware." />
     <title>dj-controller</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%231b1b1f' stroke='%234da3ff' stroke-width='2'/%3E%3Ccircle cx='8' cy='8' r='2' fill='%234da3ff'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="./assets/styles/page.css" />
@@ -16,13 +16,6 @@
       <button id="connect" type="button" disabled>Connect a DDJ-FLX10</button>
     </header>
     <p id="error" role="alert" hidden></p>
-    <dj-controller-twin hidden></dj-controller-twin>
-    <main id="desk">
-      <section class="deck" data-deck="0" aria-label="deck 1" aria-busy="true"></section>
-      <section class="mixer" aria-label="mixer"></section>
-      <section class="deck" data-deck="1" aria-label="deck 2" aria-busy="true"></section>
-      <section class="effects" aria-label="beat fx"></section>
-      <section class="sampler" aria-label="sampler deck"></section>
-    </main>
+    <dj-controller-twin></dj-controller-twin>
   </body>
 </html>

@@ -25,7 +25,7 @@ export type BeatFxState = {
 // sysex-crack.md §2: what rekordbox writes with no track loaded.
 export const NO_TRACK_BPM = 120
 
-// ASSUMPTION: unconnected, TRANS (as rekordbox at connect, sysex-crack.md §2) on the master, half depth; ECHO 1 as Release FX.
+// ASSUMPTION: ECHO 1 as Release FX; the rest is the knobs'.
 export const START: BeatFxState = {
   effect: 'trans',
   target: 'master',
@@ -37,17 +37,6 @@ export const START: BeatFxState = {
   taps: [],
   tapBpm: NO_TRACK_BPM,
   release: { type: 'releaseEcho', beats: 1, held: false },
-}
-
-export function startFrom(parts: readonly string[]): BeatFxState {
-  return parts.reduce((s, part) => {
-    const effect = EFFECTS.find((e) => e === part)
-    const target = TARGETS.find((t) => t === part)
-    if (effect) return selected(s, effect)
-    if (target) return targeted(s, target)
-    if (part === 'on') return { ...s, on: true }
-    throw new RangeError(`?fx= takes an effect (${EFFECTS.join(', ')}), a target (${TARGETS.join(', ')}) or on, not "${part}"`)
-  }, START)
 }
 
 export const selected = (s: BeatFxState, effect: BeatFx): BeatFxState => (s.effect === effect ? s : { ...s, effect })
@@ -90,14 +79,6 @@ export function beatPressed(s: BeatFxState, direction: -1 | 1, shift: boolean, t
 // RB p.185: the Release FX cancels the Beat FX and acts while held.
 export const releaseHeld = (s: BeatFxState, held: boolean): BeatFxState => ({ ...s, on: held ? false : s.on, release: { ...s.release, held } })
 
-export const releaseTyped = (s: BeatFxState, type: ReleaseFx): BeatFxState => ({ ...s, release: { ...s.release, type } })
-
-export function releaseBeats(s: BeatFxState, beats: number): BeatFxState {
-  if (!BEATS.includes(beats)) throw new RangeError(`a Release FX lasts beats from the Beat FX list, not ${beats}`)
-  return { ...s, release: { ...s.release, beats } }
-}
-
-/** Each deck's track BPM, null unloaded. */
 export type BpmSources = { readonly decks: Pair<number | null>; readonly sampler: number; readonly master: DeckIndex }
 
 // RB p.185 [AUTO]; RB p.182 [S], [M]. The demo has no CH 3, CH 4 or microphone.
@@ -141,7 +122,6 @@ function overrun(name: string, kind: string, beats: number, bpm: number): string
   return `${name} at ${beats} beats and ${bpm.toFixed(1)} BPM needs ${asked.toFixed(1)} s, past the ${limit} s ${ring ? 'of sound the effect processor keeps' : 'a delay line holds'}`
 }
 
-/** Why `s` cannot play at `bpm`, null when it can. */
 export function refusal(s: BeatFxState, bpm: number): string | null {
   if (!(bpm > 0)) return null
   return overrun(NAMES[s.effect], s.effect, Math.abs(s.params[s.effect]), bpm) ?? overrun(`Release FX ${s.release.type}`, s.release.type, s.release.beats, bpm)

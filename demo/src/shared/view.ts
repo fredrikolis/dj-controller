@@ -1,4 +1,4 @@
-// Concern: the page's view state as its URL query, one owner: the twin's layout, the decks' start, loop and hot cues, the sampler's and Beat FX's start | Non-concern: each view | IO: (query) <-> state
+// Concern: the page's view state as its URL query, one owner: the twin's layout, the decks' start, loop and hot cues | Non-concern: each view | IO: (query) <-> state
 import type { Pair } from './decks.ts'
 import { NO_HOT_CUES, slotName, type HotCue, type HotCues } from './transport/hot-cue-state.ts'
 
@@ -20,25 +20,6 @@ export const layout = (query: URLSearchParams): Layout | null => LAYOUTS.find((l
 export const deskStart = (query: URLSearchParams): DeskStart | null => STARTS.find((s) => s === query.get('state')) ?? null
 
 export const loopStart = (query: URLSearchParams): LoopStart | null => LOOPS.find((l) => l === query.get('loop')) ?? null
-
-export type SamplerStart = { readonly bank: number; readonly sync: boolean; readonly quantize: boolean }
-
-/** `?sampler=3,sync,noq`: bank 3 showing, BPM SYNC on, Q off; any part may go. */
-export function samplerStart(query: URLSearchParams): SamplerStart | null {
-  const text = query.get('sampler')
-  if (text === null) return null
-  let start: SamplerStart = { bank: 0, sync: false, quantize: true }
-  for (const part of text.split(',')) {
-    if (/^[1-4]$/.test(part)) start = { ...start, bank: Number(part) - 1 }
-    else if (part === 'sync') start = { ...start, sync: true }
-    else if (part === 'noq') start = { ...start, quantize: false }
-    else return null
-  }
-  return start
-}
-
-// ?fx=echo,channel1,on
-export const beatFxStart = (query: URLSearchParams): readonly string[] | null => query.get('fx')?.split(',') ?? null
 
 const CUE = /^([12])([A-P])(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?$/
 

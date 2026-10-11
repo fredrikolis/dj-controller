@@ -4,9 +4,8 @@ import test from 'node:test'
 import { slotAt } from '../../shared/sampler/banks.ts'
 import { SAMPLER_START, withoutVoice, type SamplerState } from '../../shared/sampler/sampler-state.ts'
 import { createStore } from '../../shared/store.ts'
-import { samplerStart } from '../../shared/view.ts'
-import { SamplerRefused, samplerOf, startSampler, type SamplerControls } from './actions.ts'
-import { banked, elsewhereAt, paged, playingAt, pressed, stopped } from './players.ts'
+import { SamplerRefused, samplerOf, type SamplerControls } from './actions.ts'
+import { elsewhereAt, paged, playingAt, pressed, stopped } from './players.ts'
 
 const ids = (s: SamplerState) => s.voices.map((v) => v?.id ?? null)
 
@@ -15,8 +14,6 @@ test('T2: PAGE ▶ and ◀ step the one bank both decks show, stopping at banks 
   assert.equal(s, SAMPLER_START)
   for (const want of [1, 2, 3, 3]) assert.equal((s = paged(s, 1)).bank, want)
   assert.equal(paged(s, -1).bank, 2)
-  assert.equal(banked(s, 0).bank, 0)
-  assert.throws(() => banked(s, 4), RangeError)
 })
 
 test('T3: a press plays its slot, a second restarts it, SHIFT+press stops it; silence and an empty slot do nothing (MAN p.84 steps 4-6)', () => {
@@ -27,7 +24,7 @@ test('T3: a press plays its slot, a second restarts it, SHIFT+press stops it; si
   assert.throws(() => pressed(one, 5, 1), /already plays/)
   assert.equal(stopped(one, 3).voices[3], null)
   assert.equal(stopped(SAMPLER_START, 3), SAMPLER_START)
-  const empty = banked(SAMPLER_START, 3)
+  const empty = { ...SAMPLER_START, bank: 3 }
   assert.equal(pressed(empty, 0, 9), empty)
 })
 
@@ -68,16 +65,4 @@ test('T3: a press before its sound is rendered is refused, naming the slot; a Ga
   assert.ok(deck.state.state.voices[0], 'bank 1\'s kick plays on')
   assert.equal(sampler.press(0, true), null)
   assert.equal(deck.state.state.voices[0], null, 'SHIFT+press stops another bank\'s slot at its position')
-})
-
-test('?sampler= starts the sampler deck on its bank, BPM SYNC and Q; anything else in it is no start', () => {
-  const start = (text: string) => samplerStart(new URLSearchParams({ sampler: text }))
-  assert.deepEqual(start('3,sync,noq'), { bank: 2, sync: true, quantize: false })
-  assert.deepEqual(start('2'), { bank: 1, sync: false, quantize: true })
-  assert.equal(start('5'), null)
-  assert.equal(start('3,loud'), null)
-  assert.equal(samplerStart(new URLSearchParams()), null)
-  const deck = fakeDeck([])
-  startSampler(deck, { bank: 2, sync: true, quantize: false })
-  assert.deepEqual([deck.state.state.bank, deck.state.state.sync, deck.state.state.quantize], [2, true, false])
 })

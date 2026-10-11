@@ -8,7 +8,7 @@ import { gridOf } from '../../shared/transport/grid.ts'
 import type { BeatFx, ReleaseFx, Target } from './effects.ts'
 import { createRouter } from './route.ts'
 import { createBeatFxUnit } from './unit.ts'
-import { beatPressed, depthSet, fxBpm, phaseOf, refusal, releaseBeats, releaseHeld, releaseTyped, selected, targeted, toggled, type BeatFxState, type BpmSources } from './unit-state.ts'
+import { beatPressed, depthSet, fxBpm, phaseOf, refusal, releaseHeld, selected, targeted, toggled, type BeatFxState, type BpmSources } from './unit-state.ts'
 
 export type BeatFxControls = {
   readonly state: Watched<BeatFxState>
@@ -22,8 +22,6 @@ export type BeatFxControls = {
   depth(depth: number): void
   /** Held from now until the returned call. */
   release(): () => void
-  releaseType(type: ReleaseFx): void
-  releaseBeats(beats: number): void
   tick(): void
 }
 
@@ -83,8 +81,6 @@ export function startBeatFx(desk: Desk, initial: BeatFxState, signal: AbortSigna
       change((s) => releaseHeld(s, true))
       return () => state.update((s) => releaseHeld(s, false))
     },
-    releaseType: (type) => change((s) => releaseTyped(s, type)),
-    releaseBeats: (beats) => change((s) => releaseBeats(s, beats)),
     tick() {
       const now = performance.now()
       const s = state.state
