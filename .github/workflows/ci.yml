@@ -74,7 +74,8 @@ jobs:
         with:
           node-version: 24
       - run: cargo run --locked --quiet -p dj-controller-cli -- package target/pkg
-      - run: npm publish --dry-run --access public ./target/pkg
+      # The tarball npm would publish, listed; no registry asked, so a version already published still passes.
+      - run: npm pack --dry-run ./target/pkg
       - name: Check the demo pins the version this build publishes
         run: test "$(node -p "require('./demo/package.json').dependencies['dj-controller']")" = "$(node -p "require('./target/pkg/package.json').version")"
       - name: Check the demo's lockfile matches its manifest

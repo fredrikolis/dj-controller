@@ -26,6 +26,22 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+      # npm served 0.1.0's tarball only minutes after its publish; an install before that fails with E404.
+      - name: Wait for npm to serve the version the demo pins
+        working-directory: demo
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').dependencies['dj-controller']")"
+          tarball="https://registry.npmjs.org/dj-controller/-/dj-controller-$version.tgz"
+          for attempt in $(seq 1 60); do
+            if [ "$(npm view "dj-controller@$version" version 2>/dev/null)" = "$version" ] && curl --fail --silent --head "$tarball" >/dev/null; then
+              exit 0
+            fi
+            echo "attempt $attempt of 60: npm does not serve dj-controller@$version yet"
+            sleep 10
+          done
+          echo "::error::npm did not serve $tarball within 10 minutes; run this workflow again once it answers"
+          exit 1
       - name: Install the demo with the published package
         working-directory: demo
         run: npm ci
