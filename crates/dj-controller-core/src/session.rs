@@ -306,6 +306,11 @@ impl Session {
         self.0.model
     }
 
+    /// Whether `other` is this session.
+    pub fn same(&self, other: &Session) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+
     pub fn receive(&self, bytes: &[u8], time: f64) {
         self.take(bytes.to_vec(), Message::parse(bytes), time);
     }
@@ -478,7 +483,7 @@ impl Session {
 
     /// Tells every output once, as in `fill` else its rest state, `gap` ms apart on the link's
     /// clock; returns the span they were scheduled over.
-    fn sync(&self, fill: &[Output], gap: f64) -> Result<f64, Error> {
+    pub(crate) fn sync(&self, fill: &[Output], gap: f64) -> Result<f64, Error> {
         let plan = Ledger::sync_plan(self.0.model, fill);
         let start = self.0.link.now();
         for (n, output) in plan.iter().enumerate() {

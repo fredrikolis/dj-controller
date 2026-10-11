@@ -41,7 +41,7 @@ fn the_package_keeps_its_contract_against_a_stand_in_web_midi() {
     assert!(installed.status.success(), "{}", String::from_utf8_lossy(&installed.stderr));
     let report = Command::new("node")
         .args(["--test", "--test-reporter=spec"])
-        .args(["connect", "load", "twin", "package"].map(|t| crate_dir.join(format!("tests/{t}.test.mjs"))))
+        .args(["connect", "load", "twin", "virtual", "package"].map(|t| crate_dir.join(format!("tests/{t}.test.mjs"))))
         .env("DJ_CONTROLLER_PKG", consumer.join("node_modules/dj-controller"))
         .env("DJ_CONTROLLER_BUILD", &pkg)
         .output()

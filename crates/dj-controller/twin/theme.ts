@@ -8,11 +8,11 @@ export const tokens = {
   down: 'light-dark(#0a66c2, #4da3ff)',
   shift: 'light-dark(#8b3fd1, #c39bff)',
   lit: 'light-dark(#c77700, #ffb340)',
-  // An LED as the driver last told it: on.
   led: 'light-dark(#d93025, #ff6b5e)',
-  // A pad's face, a screen's glass, and ink on a part shown down.
+  // A pad's face, a screen's glass and its ink, ink on a part shown down.
   pad: 'light-dark(#3a3a40, #2a2a30)',
   screen: '#141418',
+  'on-screen': '#e4e4ec',
   'on-down': 'light-dark(#fff, #0e0e10)',
 } as const
 

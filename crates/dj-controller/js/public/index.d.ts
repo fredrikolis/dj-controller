@@ -1,5 +1,5 @@
-// Concern: the main entry's public types: connect, palette, and every controller type, each model's among them | Non-concern: the diagnostics entry | IO: none
-import type { ConnectOptions, Controllers, ModelName, Palettes } from './dj_controller.js'
+// Concern: the main entry's public types: connect, virtual, palette, every controller type | Non-concern: the diagnostics entry | IO: none
+import type { ConnectOptions, Controllers, ModelName, Palettes, Virtual } from './dj_controller.js'
 
 export type * from './dj_controller.js'
 
@@ -39,11 +39,9 @@ export type {
   ValueOut,
 } from './dj_controller.js'
 
-/**
- * Asks for MIDI access, waits for the model's ports, opens them, tells every output its rest state
- * and resolves once the device has answered its state request. Lives until closed, unplugged or the
- * signal aborts; never reconnects: a new connect after an unplug gives a new controller.
- */
+/** Resolves once the device has answered its state request, every output told its rest state. */
 export declare function connect<M extends ModelName>(model: M, options?: ConnectOptions): Promise<Controllers[M]>
+
+export declare function virtual<M extends ModelName>(model: M, options?: ConnectOptions): Promise<Virtual<Controllers[M]>>
 
 export declare function palette<M extends ModelName>(model: M): Promise<Palettes[M]>

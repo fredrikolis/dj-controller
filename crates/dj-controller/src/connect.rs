@@ -39,9 +39,14 @@ impl Link for WebLink {
     }
 
     fn sleep(&self, ms: f64) -> Pin<Box<dyn Future<Output = ()>>> {
-        let cancel = AbortController::new().unwrap_throw();
-        Box::pin(Sleep { wait: JsFuture::from(sleep(ms, &cancel.signal())), cancel })
+        timer(ms)
     }
+}
+
+/// A link's sleep on the page's timers.
+pub fn timer(ms: f64) -> Pin<Box<dyn Future<Output = ()>>> {
+    let cancel = AbortController::new().unwrap_throw();
+    Box::pin(Sleep { wait: JsFuture::from(sleep(ms, &cancel.signal())), cancel })
 }
 
 /// A timer that, dropped before it fires, clears itself, so a lost race leaves no timer behind.

@@ -9,6 +9,7 @@ mod glue;
 #[cfg(feature = "diagnostics")]
 mod inspect;
 mod js;
+mod virtual_unit;
 
 // web-sys binds WebHID and WebUSB only under this cfg, which .cargo/config.toml sets for wasm32 alone.
 #[cfg(all(feature = "diagnostics", web_sys_unstable_apis))]
@@ -55,12 +56,100 @@ export interface Palette {
   colour(number: number): PaletteColour | undefined;
 }
 
-/** A connected controller: its session's model and its palette, `closed` and `close`. */
+/** A connected controller: its session's model and its palette, `closed` and `close`. `connect` asks for MIDI access, waits for the model's ports and opens them; the controller lives until closed, unplugged or its signal aborts, and never reconnects: a new connect after an unplug gives a new controller. */
 export interface Controller<Model extends string = string> {
   readonly model: Model;
   readonly palette: Palette | undefined;
   readonly closed: Promise<CloseReason>;
   close(): Promise<void>;
+}
+
+/** A gesture's layer beyond SHIFT, pad mode and page, which a virtual controller follows itself: `layer` one of the control's other layer words as its events' `layer` carries them (`long-press`, `vinyl-on`), `""` where left out; `index` the 0-based member a shared control's press names, as a browser press its `deck`. */
+export type GestureLayer = { readonly layer?: string; readonly index?: number };
+
+/**
+ * A virtual controller's hands: each gesture on a physical control of its own tree arrives as the
+ * message the model sends for it, on the layer a device would send: its owner's SHIFT where held,
+ * the pad mode and page its pad mode and PAGE presses chose, each pad mode keeping its page. A
+ * selector's switch flipped on leaves the position it was at; a button the model file ties to a
+ * selector steps it. It does nothing a hand did not: a long press or a jog's vinyl mode is a gesture
+ * naming that layer, and it sends no fader start. Every gesture is done when it returns and throws a `refused`
+ * ControllerError, with why, for a bank view, another controller's control, a value or layer the
+ * control does not take.
+ */
+export interface VirtualGestures {
+  /** Holds a button down until `release`. */
+  press(control: Button<unknown>, layer?: GestureLayer): void;
+  release(control: Button<unknown>): void;
+  /** Holds a pad down at `velocity`, 1 to 127, until `lift`. */
+  hit(control: Pad<unknown>, velocity: number): void;
+  lift(control: Pad<unknown>): void;
+  /** A fader or knob to `value`, a whole 0 to its `max`. */
+  move(control: Absolute, value: number): void;
+  /** A jog or encoder by `ticks`, signed and whole. */
+  turn(control: Relative<unknown>, ticks: number, layer?: GestureLayer): void;
+  /** One position of a selector on, or a lone switch on or off. */
+  flip(control: Switch, on: boolean): void;
+  /** How a hand moves a switch: `selector`, one position of several, flipped on only; `toggle`, flipped alone; undefined for a state the unit reports itself, which `flip` refuses. */
+  flips(control: Switch): "selector" | "toggle" | undefined;
+  /** Every layer word a gesture on `control` may name. */
+  layers(control: Button<unknown> | Relative<unknown>): readonly string[];
+}
+
+/** A controller no device is behind, played through `virtual`: everything else as a connected one, its outputs told to nothing but what reads them back. `virtual(model)` resolves to one with every output told its rest state and every control reported where the model file rests it; no Web MIDI is asked for; it lives until closed or its signal aborts. */
+export type Virtual<C extends Controller> = C & { readonly virtual: VirtualGestures };
+
+/**
+ * The Beat FX display's text, in the shape the unit's SysEx carries it: `name` up to 32 printable
+ * ASCII characters, `beat` the beat or parameter text, up to 5, `bpm` from 0 to under 1000, shown to
+ * a tenth, undefined for none, `tap` whether that BPM is tapped, AUTO otherwise. The channel is the
+ * unit's own: the twin draws it from the Beat FX channel selector. The twin alone shows it; nothing
+ * is sent to a device.
+ */
+export type BeatFxText = { readonly name: string; readonly beat: string; readonly bpm: number | undefined; readonly tap: boolean };
+
+/** A jog display's text the model's MIDI has no output for: `range`, its playing speed adjustment range, up to 6 characters, as `±10%`. */
+export type JogText = { readonly range: string };
+
+/** The DDJ-FLX10's displays a host shows text on, by id: the Beat FX display and each deck's jog display. */
+export type DdjFlx10Displays = { readonly beatFx: BeatFxText; readonly jog1: JogText; readonly jog2: JogText; readonly jog3: JogText; readonly jog4: JogText };
+
+/** Every display `<dj-controller-twin>` shows a host's text on, by id. */
+export type TwinDisplays = DdjFlx10Displays;
+
+/**
+ * What a host gives `<dj-controller-twin>` to show, as data: the element's own properties.
+ *
+ * The twin draws a controller's panel, every control moving as the device reports it, each LED and
+ * pad colour as the driver last told it, each jog display showing the display outputs it was told.
+ * A connected controller's part, held, lights its LED. A virtual controller's parts are its
+ * controls: a press holds a button or pad (Enter or Space on a focused one), a drag moves a fader,
+ * turns a knob (a double click centres it), a jog's top or side, an encoder (also the wheel); arrow
+ * keys step a focused one; a click sets a selector's position; SHIFT latches on a click, and the
+ * keyboard's Shift held with any gesture holds the part's SHIFT for it; a button with a `long-press`
+ * layer held for 1 s presses that layer too.
+ */
+export interface TwinHost {
+  /** The controller drawn, connected or virtual; null draws nothing. */
+  controller: Controller | null;
+  /** Settles once it stops following: disconnected, given another controller, the controller closed, or a stream failed, logged and dispatched as an `error` ErrorEvent. */
+  readonly running: Promise<void>;
+  /**
+   * The labels a host shows on buttons and pads, in place, by control, declared whole: assign a
+   * new map to change any. A text is 1 to 32 characters, none a control character. A key is a bank
+   * view (`decks[0].modes.sampler.pages[1].pads[3]`, `decks[0].shifted.cue`), labelling the bank it
+   * is, shown only while the device shows that pad mode and page, or a control with no bank per
+   * pad mode (`decks[0].cue`); a SHIFT bank's label shows while SHIFT is held, the unshifted one
+   * where it has none. A label is plain state, as a colour's base: it takes no lease. The map
+   * outlives a controller: a key that is no control of the one drawn labels nothing. A pad draws
+   * its label in up to two lines, words kept whole, at the largest size that fits; past the
+   * smallest, a line is cut and ends in an ellipsis. A button draws it on one line in place of its
+   * printed name. Assigning throws a RangeError, nothing changed, for a text it does not take or a
+   * pad with a bank per pad mode and page, which names no one bank.
+   */
+  labels: ReadonlyMap<Button<unknown> | Pad<unknown>, string>;
+  /** The text a host shows on displays, by id, declared whole: assign a new object to change any; a display left out shows none. Assigning throws a RangeError naming the field that does not fit what its display carries, nothing changed. */
+  texts: { readonly [D in keyof TwinDisplays]?: TwinDisplays[D] };
 }
 
 /** A time in ms on the controller's clock, the one its MIDI events are stamped on: `performance.now()` in a page. Every event's `time` is one; a lease's steps fall due on it. */

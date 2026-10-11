@@ -29,9 +29,23 @@ ${Object.entries(tokens).map(([name, value]) => `    --${name}: var(--dj-twin-${
   .part .level { fill: var(--led); }
   .part .arc { fill: none; stroke: var(--down); stroke-width: 3; }
   .part.pad .body { fill: var(--pad); }
-  .part.touch .body, .part.meter .body { fill: none; }
-  .part.screen .body { fill: var(--screen); }
+  .part.touch .body { fill: transparent; }
+  .part.meter .body { fill: none; }
+  .part.jog .body, .part.display .body { fill: var(--screen); }
+  .part.jog, .part.display { pointer-events: none; }
+  .part text.shown { fill: var(--on-screen); opacity: 1; }
+  .part text.shown.dim { opacity: 0.7; }
+  .part text.shown.big { font-weight: 700; }
+  .part text.shown.flag { opacity: 0.25; }
+  .part text.shown.flag.on { opacity: 1; fill: var(--lit); }
+  .part .marker { stroke: var(--on-screen); stroke-width: 4; stroke-linecap: round; }
+  .part .cue { stroke: var(--lit); stroke-width: 4; stroke-linecap: round; }
+  .part .reach { fill: transparent; stroke: none; }
+  .part text.told { fill: var(--on-screen); stroke: var(--screen); stroke-width: 2.5; paint-order: stroke; stroke-linejoin: round; font-weight: 700; }
+  .part.played { cursor: pointer; touch-action: none; -webkit-user-select: none; user-select: none; }
+  .part.played.fader, .part.played.knob, .part.played.spin, .part.played.encoder { cursor: grab; }
   .part.lit .body { fill: color-mix(in srgb, var(--led) 45%, var(--panel)); stroke: var(--led); }
+  .part.jog.lit .body { stroke: var(--on-screen); fill: var(--screen); }
   .part.coloured .body { fill: var(--told-colour); }
   .part.held .body { stroke: var(--lit); stroke-width: 3; fill: color-mix(in srgb, var(--lit) 35%, var(--panel)); }
   .part.down .body { fill: var(--down); }

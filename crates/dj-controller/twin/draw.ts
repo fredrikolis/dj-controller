@@ -1,9 +1,11 @@
 // Concern: draws one placed part as SVG and hands back the nodes its paint moves | Non-concern: what state it shows (paint.ts), placing it (layout.ts) | IO: (svg, Part) -> View
+import { drawDisplay, drawJog, type ScreenNodes } from './screens.js'
 import type { Part } from './types.js'
 
 const SVG = 'http://www.w3.org/2000/svg'
 
-export type View = { g: SVGGElement; body?: SVGElement; halo?: SVGElement; cap?: SVGElement; pointer?: SVGElement; arc?: SVGElement; mark?: SVGElement; level?: SVGElement }
+/** `text`: a button's printed label, where a host's label goes; `lines`: a pad's two; `shown`: a screen's or display's fields. */
+export type View = { g: SVGGElement; body?: SVGElement; halo?: SVGElement; cap?: SVGElement; pointer?: SVGElement; arc?: SVGElement; mark?: SVGElement; level?: SVGElement; text?: SVGElement; lines?: readonly SVGElement[]; shown?: ScreenNodes }
 
 export function el<K extends keyof SVGElementTagNameMap>(parent: Element | null, name: K, attrs: Record<string, string | number> = {}): SVGElementTagNameMap[K] {
   const node = document.createElementNS(SVG, name)
@@ -31,14 +33,21 @@ function body(g: SVGGElement, part: Part, grow = 0, cls = 'body'): SVGElement {
   return el(g, 'rect', { class: cls, x: x - w / 2, y: y - h / 2, width: w, height: h, rx: Math.min(4, h / 4) })
 }
 
-function label(g: SVGGElement, part: Part): void {
-  if (!part.label) return
-  const inside = part.shape === 'button' || part.shape === 'round'
+export const inside = (part: Part): boolean => part.shape === 'button' || part.shape === 'round'
+
+export function insideSize(part: Part, length: number): number {
   const [w, h] = dims(part.size)
-  // A monospace glyph is about 0.6 em wide; an inside label shrinks to fit its part.
-  const size = inside ? Math.max(5, Math.min(h * 0.5, 12, (w * 0.85) / (0.6 * part.label.length))) : 9
-  const y = inside ? part.y : part.y - h / 2 - (part.shape === 'position' ? 3 : 5)
-  el(g, 'text', { x: part.x, y, 'font-size': size, class: inside ? 'inside' : 'above' }).textContent = part.label
+  return Math.max(5, Math.min(h * 0.5, 12, (w * 0.85) / (0.6 * Math.max(1, length))))
+}
+
+function label(g: SVGGElement, part: Part): SVGElement | undefined {
+  if (!inside(part) && !part.label) return undefined
+  const [, h] = dims(part.size)
+  const size = inside(part) ? insideSize(part, part.label?.length ?? 1) : 9
+  const y = inside(part) ? part.y : part.y - h / 2 - (part.shape === 'position' ? 3 : 5)
+  const text = el(g, 'text', { x: part.x, y, 'font-size': size, class: inside(part) ? 'inside' : 'above' })
+  text.textContent = part.label ?? ''
+  return text
 }
 
 export function draw(svg: SVGSVGElement, part: Part): View {
@@ -61,15 +70,25 @@ export function draw(svg: SVGSVGElement, part: Part): View {
   } else if (part.shape === 'spin') {
     view.halo = el(g, 'circle', { class: 'halo', cx: x, cy: y, r })
     el(g, 'circle', { class: 'track', cx: x, cy: y, r })
+    el(g, 'circle', { class: 'reach', cx: x, cy: y, r })
     // A mark only where the model states a revolution to turn it by.
     if (part.controls.some(({ control }) => control.revolution !== undefined)) view.mark = el(g, 'circle', { class: 'mark', cx: x, cy: y - r, r: 9 })
+  } else if (part.shape === 'jog' || part.shape === 'display') {
+    body(g, part)
+    view.shown = part.shape === 'jog' ? drawJog(g, part) : drawDisplay(g, part)
+  } else if (part.shape === 'pad') {
+    view.halo = body(g, part, 3, 'halo')
+    view.body = body(g, part)
+    view.lines = [el(g, 'text', { x, class: 'told' }), el(g, 'text', { x, class: 'told' })]
   } else if (part.shape === 'meter') {
     view.level = el(g, 'rect', { class: 'level', x: x - w / 2, y: y + h / 2, width: w, height: 0 })
     body(g, part)
   } else {
     view.halo = body(g, part, 3, 'halo')
     view.body = body(g, part)
+    // A selector's dot is small: its hit area is a little larger, short of its neighbours'.
+    if (part.shape === 'position' && typeof part.size === 'number') el(g, 'circle', { class: 'reach', cx: x, cy: y, r: part.size + 1.5 })
   }
-  label(g, part)
+  view.text = label(g, part)
   return view
 }

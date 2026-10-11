@@ -1,5 +1,8 @@
 // Concern: moves a part's drawn nodes to show the state of the control it shows now | Non-concern: drawing them (draw.ts), where the state comes from | IO: (Part, View, State) -> SVG attributes
-import { capAt, dims, type View } from './draw.js'
+import { capAt, dims, inside, insideSize, type View } from './draw.js'
+import type { BeatFxText, JogText } from '../index.js'
+import { fit } from './labels.js'
+import { paintDisplay, paintJog } from './screens.js'
 import type { State } from './follow.js'
 import type { Part } from './types.js'
 
@@ -18,9 +21,33 @@ function arc(x: number, y: number, r: number, from: number, to: number): string 
 /** A colour number as the palette's `#rrggbb`, where the model's palette states one. */
 export type Rgb = (colour: number) => string | undefined
 
-/** Paints `state`, and `held` where a hold lit the control shown. */
-export function paint(part: Part, view: View, state: State & { held: boolean }, rgb: Rgb): void {
+/** What a host shows on a part: its label, a display's text. */
+export type Told = { readonly label?: string; readonly beatFx?: BeatFxText; readonly jog?: JogText }
+
+/** A pad's label: up to two lines, 13 down to 9 a glyph, as `fit` wraps, shrinks and cuts it. */
+function padLabel(part: Part, lines: readonly SVGElement[], label: string | undefined): void {
+  const [w] = dims(part.size)
+  const fitted = label === undefined ? { size: 13, lines: [] } : fit(label, w * 0.92, lines.length, 13, 9)
+  lines.forEach((line, n) => {
+    line.textContent = fitted.lines[n] ?? ''
+    line.setAttribute('font-size', String(fitted.size))
+    line.setAttribute('y', String(part.y + (n - (fitted.lines.length - 1) / 2) * fitted.size * 1.15))
+  })
+}
+
+/** Paints `state`, `held` where a hold lit the control shown, and what a host shows there. */
+export function paint(part: Part, view: View, state: State & { held: boolean }, rgb: Rgb, told: Told = {}): void {
   const { g } = view
+  g.classList.toggle('labelled', told.label !== undefined)
+  if (view.lines) padLabel(part, view.lines, told.label)
+  else if (view.text && inside(part)) {
+    // A host's label takes the printed one's place, cut where even the smallest size does not fit it.
+    const text = told.label === undefined ? (part.label ?? '') : fit(told.label, dims(part.size)[0] * 0.85, 1, 12, 5).lines[0]
+    view.text.textContent = text
+    view.text.setAttribute('font-size', String(insideSize(part, text.length)))
+  }
+  if (view.shown && part.shape === 'jog') paintJog(part, view.shown, state.screen, part.screens[state.at]?.deck ?? '', told.jog)
+  if (view.shown && part.shape === 'display') paintDisplay(part, view.shown, state.channel, told.beatFx)
   g.classList.toggle('down', state.down)
   g.classList.toggle('held', state.held)
   g.classList.toggle('lit', state.lit === true)

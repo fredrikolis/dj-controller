@@ -33,6 +33,15 @@ impl Leaf {
         Leaf { session: session.clone(), object, rows, bank }
     }
 
+    /// None for a view of one bank.
+    pub fn physical(&self) -> Option<usize> {
+        (!self.bank).then_some(self.object)
+    }
+
+    pub fn of(&self, session: &Session) -> bool {
+        self.session.same(session)
+    }
+
     fn write(&self, value: Write) -> Result<(), Error> {
         self.session.write(self.object, self.bank.then(|| self.rows[0]), value)
     }
@@ -244,6 +253,10 @@ impl<I: Identity> From<Leaf> for Button<I> {
 }
 
 impl<I: Identity> Button<I> {
+    pub fn leaf(&self) -> &Leaf {
+        &self.leaf
+    }
+
     pub fn pressed(&self) -> bool {
         self.leaf.session.latest(self.leaf.rows) == Some(Value::Button(true))
     }
@@ -305,6 +318,10 @@ impl<I: Identity> From<Leaf> for Pad<I> {
 }
 
 impl<I: Identity> Pad<I> {
+    pub fn leaf(&self) -> &Leaf {
+        &self.leaf
+    }
+
     pub fn hits(&self) -> Feed<Hit<I>> {
         self.leaf.feed(|row, value, time, released| match value {
             Value::Pad(velocity) if velocity > 0 => {
@@ -355,6 +372,10 @@ impl From<Leaf> for Switch {
 }
 
 impl Switch {
+    pub fn leaf(&self) -> &Leaf {
+        &self.leaf
+    }
+
     /// None until the device reports it.
     pub fn on(&self) -> Option<bool> {
         match self.leaf.session.latest(self.leaf.rows) {
@@ -381,6 +402,10 @@ impl From<Leaf> for Absolute {
 }
 
 impl Absolute {
+    pub fn leaf(&self) -> &Leaf {
+        &self.leaf
+    }
+
     /// None until the device reports it; a lone 14-bit half keeps the other half last reported.
     pub fn value(&self) -> Option<u16> {
         match self.leaf.session.latest(self.leaf.rows) {
@@ -417,6 +442,10 @@ impl<I: Identity> From<Leaf> for Relative<I> {
 }
 
 impl<I: Identity> Relative<I> {
+    pub fn leaf(&self) -> &Leaf {
+        &self.leaf
+    }
+
     pub fn position(&self) -> Position<I> {
         position(self.leaf.session.turned(self.leaf.rows))
     }

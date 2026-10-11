@@ -134,8 +134,9 @@ pub struct Surface {
     pub start: Option<Layer>,
 }
 
-/// Names the tree gives its own members: an owner's modes and banks, the controller's lifecycle.
-const RESERVED: [&str; 8] = ["mode", "modeChanges", "modes", "shifted", "model", "palette", "closed", "close"];
+/// Names the tree gives its own members: an owner's modes and banks, the controller's lifecycle, a virtual one's gestures.
+const RESERVED: [&str; 9] =
+    ["mode", "modeChanges", "modes", "shifted", "model", "palette", "closed", "close", "virtual"];
 
 /// Every model's surface, built once; one that breaks a rule panics, as the tests catch first.
 pub fn surface(model: &'static Model) -> &'static Surface {

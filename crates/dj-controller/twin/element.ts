@@ -1,18 +1,32 @@
 // Concern: <dj-controller-twin>: a controller's panel from its layout, following each control's stream while it lives, a held part lit | Non-concern: drawing, following | IO: (controller) -> SVG
 import { draw, el, type View } from './draw.js'
 import { follow, initial, type State } from './follow.js'
+import type { Button, Pad, TwinDisplays, VirtualGestures } from '../index.js'
+import { checkedText } from './displays.js'
+import { hands, type Point } from './gestures.js'
+import { checked } from './labels.js'
 import { layoutOf, place, placed, type Twinned } from './layout.js'
 import type { Layout, Part } from './types.js'
 import { logger } from './logger.js'
-import { holdable } from './hold.js'
-import { flash, paint, type Rgb } from './paint.js'
+import { holdable, playable } from './hold.js'
+import { flash, paint, type Rgb, type Told } from './paint.js'
 import { styles } from './styles.js'
+import { showing, shownOf, tree, type Seat, type Tree } from './tree.js'
 
 const NARROW = '(orientation: portrait), (max-width: 899px)'
+const JOGS = ['jog1', 'jog2', 'jog3', 'jog4'] as const
+
+type Texts = { readonly [D in keyof TwinDisplays]?: TwinDisplays[D] }
 
 export class Twin extends HTMLElement {
   static observedAttributes = ['layout']
   #controller: Twinned | null = null
+  #tree: Tree = { seats: new Map(), owners: [] }
+  #given: ReadonlyMap<Button<unknown> | Pad<unknown>, string> = new Map()
+  /** `#given` by any handle: a bank view, or a control whose plain layer is no pad mode's bank. */
+  #labels: ReadonlyMap<object, string> = new Map()
+  #texts: Texts = {}
+  #repaint: () => void = () => {}
   #life: AbortController | null = null
   #running: Promise<void> = Promise.resolve()
   #shadow = this.attachShadow({ mode: 'open' })
@@ -29,7 +43,46 @@ export class Twin extends HTMLElement {
 
   set controller(controller: Twinned | null) {
     this.#controller = controller
+    this.#tree = controller ? tree(controller) : { seats: new Map(), owners: [] }
     this.#start()
+  }
+
+  get labels(): ReadonlyMap<Button<unknown> | Pad<unknown>, string> {
+    return this.#given
+  }
+
+  set labels(labels: ReadonlyMap<Button<unknown> | Pad<unknown>, string>) {
+    for (const [control, text] of labels) {
+      checked(text)
+      const seat = this.#tree.seats.get(control)
+      if (seat?.banked && seat.control === control) throw new RangeError('a pad with a bank for each pad mode and page names no one bank: label its bank views')
+    }
+    this.#given = new Map(labels)
+    this.#labels = new Map<object, string>(labels)
+    this.#repaint()
+  }
+
+  get texts(): Texts {
+    return this.#texts
+  }
+
+  set texts(texts: Texts) {
+    const beatFx = texts.beatFx && checkedText('beatFx', texts.beatFx)
+    const jogs = JOGS.map((id) => texts[id] && checkedText(id, texts[id]))
+    this.#texts = { beatFx, jog1: jogs[0], jog2: jogs[1], jog3: jogs[2], jog4: jogs[3] }
+    this.#repaint()
+  }
+
+  /** What a host shows on `part`'s `at`th control now: the label of its bank showing, SHIFT's while held where it has one; a display's text. */
+  #told(part: Part, at: number): Told {
+    if (part.shape === 'display') return { beatFx: this.#texts[part.id] }
+    if (part.shape === 'jog') return { jog: this.#texts[part.screens[at].id] }
+    const seat: Seat | undefined = part.shape === 'passive' ? undefined : this.#tree.seats.get(part.controls[at].control)
+    if (!seat) return {}
+    const shown = shownOf(seat, this.#tree.owners)
+    const bank = (shift: boolean) => showing(seat, shown, shift)
+    const label = (handle: object | undefined) => (handle ? this.#labels.get(handle) : undefined)
+    return { label: (shown.shift ? label(bank(true)) : undefined) ?? label(bank(false)) }
   }
 
   /** Settles once the twin stops following, by disconnection, a new controller, or the controller closing. */
@@ -91,7 +144,7 @@ export class Twin extends HTMLElement {
         dirty.add(i)
         frame ||= requestAnimationFrame(() => {
           frame = 0
-          for (const d of dirty) if (states[d].length) for (const view of views[d]) paint(parts[d], view, { ...states[d][shown(d)], held: holds.get(d) === shown(d) }, rgb)
+          for (const d of dirty) if (states[d].length) for (const view of views[d]) paint(parts[d], view, { ...states[d][shown(d)], held: holds.get(d) === shown(d) }, rgb, this.#told(parts[d], shown(d)))
           dirty.clear()
         })
       }
@@ -122,6 +175,13 @@ export class Twin extends HTMLElement {
       }
       matchMedia(NARROW).addEventListener('change', render, { signal })
       render()
+      const all = () => parts.forEach((_, i) => repaint(i))
+      this.#repaint = all
+      signal.addEventListener('abort', () => (this.#repaint = () => {}), { once: true })
+      // A label follows its owner's pad mode, page and SHIFT.
+      const moded = this.#tree.owners.map(async (owner) => {
+        for await (const _ of owner.modeChanges({ signal: following })) all()
+      })
       const followed = parts.flatMap((part, i) =>
         placed(part).map(({ control }, j) =>
           follow(part, j, following, {
@@ -134,7 +194,7 @@ export class Twin extends HTMLElement {
           }),
         ),
       )
-      await Promise.all(followed)
+      await Promise.all([...followed, ...moded])
     } catch (error) {
       stop.abort()
       if (signal.aborted) return
@@ -146,16 +206,38 @@ export class Twin extends HTMLElement {
   #render(layout: Layout, parts: Part[], homes: number[], views: View[][], light: (i: number, held: boolean) => Promise<void>, signal: AbortSignal, all: () => void): void {
     const mode = this.getAttribute('layout') ?? (matchMedia(NARROW).matches ? 'narrow' : 'wide')
     const boxes = mode === 'narrow' ? layout.narrow : [layout.view]
-    const model = this.#controller?.model ?? ''
-    this.#shadow.replaceChildren(...boxes.map(([x, y, w, h]) => el(null, 'svg', { viewBox: `${x} ${y} ${w} ${h}`, part: 'panel', role: 'group', 'aria-label': model })))
+    const controller = this.#controller
+    const unit: VirtualGestures | undefined = controller && 'virtual' in controller ? controller.virtual : undefined
+    this.#shadow.replaceChildren(...boxes.map(([x, y, w, h]) => el(null, 'svg', { viewBox: `${x} ${y} ${w} ${h}`, part: 'panel', role: 'group', 'aria-label': controller?.model ?? '' })))
     const panels = [...this.#shadow.querySelectorAll('svg')]
+    // The SHIFT a part plays under: its section's, else the layout's first.
+    const shifts = parts.filter((part) => part.shape === 'button' && part.latches)
+    const shiftOf = (part: Part): Button<unknown> | undefined => {
+      const shift = shifts.find((s) => s.section === part.section) ?? shifts[0]
+      return shift?.shape === 'button' ? shift.controls[active(shift)].control : undefined
+    }
     parts.forEach((part, i) => {
       views[i] = panels.map((svg) => draw(svg, part))
-      if (!lights(part)) return
       const name = [part.section, part.name ?? part.label ?? part.shape].filter(Boolean).join(' ')
       // Only the panel a part sits in offers it; its copies the other panels clip are not there to reach.
       const home = mode === 'narrow' ? homes[i] : 0
-      views[i].forEach(({ g }, k) => (k === home ? holdable(g, name, (held) => light(i, held), signal) : g.setAttribute('aria-hidden', 'true')))
+      // Each part by its name, for a page's own selectors and tests.
+      views[i].forEach(({ g }) => g.setAttribute('data-part', name))
+      const offer = (make: (g: SVGGElement, svg: SVGSVGElement) => void) => views[i].forEach(({ g }, k) => (k === home ? make(g, panels[k]) : g.setAttribute('aria-hidden', 'true')))
+      if (unit) {
+        const seat = part.shape === 'passive' ? undefined : this.#tree.seats.get(part.controls[0]?.control ?? part)
+        const played = hands(part, {
+          unit,
+          shown: () => active(part),
+          shift: () => shiftOf(part),
+          shifted: () => (seat ? shownOf(seat, this.#tree.owners).shift : false),
+          later: (ms, run) => {
+            const timer = setTimeout(run, ms)
+            return () => clearTimeout(timer)
+          },
+        })
+        if (played) offer((g, svg) => playable(g, name, played, (e) => point(svg, e), signal))
+      } else if (lights(part)) offer((g) => holdable(g, name, (held) => light(i, held), signal))
     })
     this.#shadow.append(this.#fullscreen(signal))
     all()
@@ -189,4 +271,12 @@ function active(part: Part): number {
 /** Whether a part is a button with an LED the twin lights while it is held. */
 function lights(part: Part): part is Part & { shape: 'button' | 'round' | 'touch' } {
   return (part.shape === 'button' || part.shape === 'round' || part.shape === 'touch') && part.controls.some(({ control }) => 'led' in control)
+}
+
+/** A pointer's place in `svg`'s own units. */
+function point(svg: SVGSVGElement, e: PointerEvent): Point {
+  const matrix = svg.getScreenCTM()
+  if (!matrix) throw new TypeError('the twin\'s panel is not rendered')
+  const { x, y } = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse())
+  return { x, y }
 }

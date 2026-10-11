@@ -212,10 +212,13 @@ impl Control {
         if self.layer.is_empty() { self.control.clone() } else { format!("{} ({})", self.control, self.layer) }
     }
 
+    pub fn max(&self) -> u16 {
+        if self.lsb.is_some() { 0x3FFF } else { 0x7F }
+    }
+
     /// Whether a `value` output admits `v`: within its range, or one of its values.
     pub fn admits(&self, v: u16) -> bool {
-        let max = if self.lsb.is_some() { 0x3FFF } else { 0x7F };
-        v <= max && (self.range.is_some_and(|[lo, hi]| (lo..=hi).contains(&v)) || self.values.contains(&v))
+        v <= self.max() && (self.range.is_some_and(|[lo, hi]| (lo..=hi).contains(&v)) || self.values.contains(&v))
     }
 
     fn check(&self) -> Result<(), String> {
@@ -291,7 +294,71 @@ struct File {
     palette: Option<Palette>,
     #[serde(rename = "start-bank")]
     start_bank: Option<StartBank>,
+    #[serde(rename = "virtual")]
+    virtual_unit: Option<VirtualUnit>,
     controls: Vec<Control>,
+}
+
+/// What a unit with no hardware needs beyond the controls; chosen, as `source` says.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VirtualUnit {
+    pub source: String,
+    /// Where an absolute control rests; one not named rests at its centre.
+    #[serde(default)]
+    pub rest: Vec<Rest>,
+    /// Switches of which exactly one is on, the first at rest.
+    #[serde(default)]
+    pub selectors: Vec<Selector>,
+    /// Off at rest.
+    #[serde(default)]
+    pub toggles: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Rest {
+    pub control: String,
+    pub value: u16,
+}
+
+/// `button`: a button whose plain press moves the selector to its next position, round again.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Selector {
+    pub positions: Vec<String>,
+    pub button: Option<String>,
+}
+
+impl VirtualUnit {
+    fn check(&self, model: &Model) -> Result<(), String> {
+        let named = |name: &String, kind: Input| match model.control(name, "") {
+            Some(c) if c.input == Some(kind) => Ok(c),
+            Some(_) => Err(format!("virtual: {name} is no {kind:?}")),
+            None => Err(format!("virtual: no control {name}")),
+        };
+        for rest in &self.rest {
+            let control = named(&rest.control, Input::Absolute)?;
+            if rest.value > control.max() {
+                return Err(format!("virtual: {} rests at {}, past its {}", rest.control, rest.value, control.max()));
+            }
+        }
+        let mut seen = std::collections::HashSet::new();
+        let switches = self.selectors.iter().flat_map(|s| &s.positions).chain(&self.toggles);
+        for name in switches {
+            named(name, Input::Switch)?;
+            if !seen.insert(name) {
+                return Err(format!("virtual: {name} twice"));
+            }
+        }
+        for selector in &self.selectors {
+            if selector.positions.len() < 2 {
+                return Err(format!("virtual: a selector of {} positions", selector.positions.len()));
+            }
+            selector.button.as_ref().map_or(Ok(()), |b| named(b, Input::Button).map(drop))?;
+        }
+        Ok(())
+    }
 }
 
 /// The bank each owner of pad modes is taken to show when a session starts, where the device
@@ -450,6 +517,7 @@ pub struct Model {
     pub hid: Option<Interface>,
     pub palette: Option<Palette>,
     pub start_bank: Option<StartBank>,
+    pub virtual_unit: Option<VirtualUnit>,
     controls: Vec<Control>,
     inputs: HashMap<Address, (usize, Part)>,
     outputs: HashMap<Address, (usize, Part)>,
@@ -488,6 +556,7 @@ impl Model {
             hid: file.hid,
             palette: file.palette,
             start_bank: file.start_bank,
+            virtual_unit: None,
             controls: file.controls,
             inputs: HashMap::new(),
             outputs: HashMap::new(),
@@ -515,6 +584,8 @@ impl Model {
                 }
             }
         }
+        file.virtual_unit.as_ref().map_or(Ok(()), |v| v.check(&model)).map_err(at)?;
+        model.virtual_unit = file.virtual_unit;
         Ok(model)
     }
 

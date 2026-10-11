@@ -25,6 +25,7 @@ use wasm_bindgen_futures::{future_to_promise, spawn_local};
 use web_sys::{AbortSignal, AddEventListenerOptions};
 
 use crate::js::{abortable, object};
+use crate::virtual_unit::place;
 
 #[wasm_bindgen(inline_js = r#"
 export function iterable(it) { it[Symbol.asyncIterator] = function () { return this }; return it }
@@ -445,7 +446,7 @@ impl LedButtonControl {
 
 impl<I: Identity> AsJs for Button<I> {
     fn as_js(&self) -> JsValue {
-        ButtonControl { button: Rc::new(self.clone()) }.into()
+        place(ButtonControl { button: Rc::new(self.clone()) }.into(), self.leaf())
     }
 }
 
@@ -457,7 +458,10 @@ impl<I: Identity> AsJs for LedButton<I> {
             async move { this.led(on).await }
         });
         let play = player(self, JsValue::as_bool);
-        LedButtonControl { button: Rc::new(self.button.clone()), led, told: Told::of(self), play }.into()
+        place(
+            LedButtonControl { button: Rc::new(self.button.clone()), led, told: Told::of(self), play }.into(),
+            self.leaf(),
+        )
     }
 }
 
@@ -500,7 +504,7 @@ fn pad<I: Identity>(pad: &Pad<I>) -> PadControl {
 
 impl<I: Identity> AsJs for Pad<I> {
     fn as_js(&self) -> JsValue {
-        pad(self).into()
+        place(pad(self).into(), self.leaf())
     }
 }
 
@@ -511,8 +515,9 @@ impl<I: Identity> AsJs for ColourPad<I> {
             let this = this.clone();
             async move { this.colour(c).await }
         });
-        ColourPadControl { pad: pad(&self.pad), colour, told: Told::of(self), play: player(self, JsValue::as_f64) }
-            .into()
+        let control =
+            ColourPadControl { pad: pad(&self.pad), colour, told: Told::of(self), play: player(self, JsValue::as_f64) };
+        place(control.into(), self.leaf())
     }
 }
 
@@ -532,7 +537,7 @@ impl SwitchControl {
 
 impl AsJs for Switch {
     fn as_js(&self) -> JsValue {
-        SwitchControl(self.clone()).into()
+        place(SwitchControl(self.clone()).into(), self.leaf())
     }
 }
 
@@ -556,7 +561,7 @@ impl AbsoluteControl {
 
 impl AsJs for Absolute {
     fn as_js(&self) -> JsValue {
-        AbsoluteControl(self.clone()).into()
+        place(AbsoluteControl(self.clone()).into(), self.leaf())
     }
 }
 
@@ -590,14 +595,14 @@ impl<I: Identity> AsJs for Relative<I> {
         let (now, latest) = (self.clone(), self.clone());
         #[cfg(feature = "diagnostics")]
         let each = self.clone();
-        RelativeControl {
+        let control = RelativeControl {
             position: Rc::new(move || to_js(&now.position())),
             revolution: self.revolution(),
             positions: Rc::new(move |options| Iter::feed(latest.positions(), |p| to_js(&p), options)),
             #[cfg(feature = "diagnostics")]
             turns: Rc::new(move |options| Iter::feed(each.turns(), |t| to_js(&t), options)),
-        }
-        .into()
+        };
+        place(control.into(), self.leaf())
     }
 }
 

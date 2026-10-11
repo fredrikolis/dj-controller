@@ -1,9 +1,10 @@
 // Concern: each model's twin layout for its controller, its parts placed on the panel | Non-concern: the layout types (types.ts), drawing, following | IO: (controller) -> Layout, Part[]
-import type { Controllers, ModelName } from '../index.js'
+import type { Controllers, ModelName, Virtual } from '../index.js'
 import { layout as ddjFlx10 } from './layouts/ddj-flx10.js'
 import type { Layout, Part, Placed } from './types.js'
 
-export type Twinned = Controllers[ModelName]
+/** A controller the twin draws: connected, or virtual, which it also plays. */
+export type Twinned = Controllers[ModelName] | Virtual<Controllers[ModelName]>
 
 export function layoutOf(controller: Twinned): Layout {
   switch (controller.model) {
@@ -17,5 +18,6 @@ export function place(layout: Layout): Part[] {
 }
 
 export function placed(part: Part): readonly Placed<unknown>[] {
-  return part.shape === 'passive' ? [] : part.controls
+  // A display shows no control of its own: one seat, for its text.
+  return part.shape === 'passive' ? [] : part.shape === 'display' ? [{ control: part }] : part.controls
 }

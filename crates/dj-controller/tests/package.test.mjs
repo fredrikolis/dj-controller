@@ -47,7 +47,7 @@ test('no entry\'s types name the glue\'s init types, so none needs the DOM lib',
 })
 
 test('the main entry imports by name from the installed tarball', async () => {
-  assert.deepEqual(Object.keys(await load('dj-controller')).sort(), ['connect', 'palette'])
+  assert.deepEqual(Object.keys(await load('dj-controller')).sort(), ['connect', 'palette', 'virtual'])
 })
 
 test('the diagnostics entry imports by name from the installed tarball', async () => {

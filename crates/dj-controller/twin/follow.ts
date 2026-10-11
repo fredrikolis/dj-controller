@@ -1,11 +1,12 @@
 // Concern: follows one placed control's typed streams until the signal aborts or the controller closes, as patches to its part's state | Non-concern: painting, writes | IO: (part, signal) -> patches
 import type { Telling } from '../index.js'
-import type { Id, Part } from './types.js'
+import type { JogShown } from './screens.js'
+import type { Id, JogScreen, Part } from './types.js'
 
 /** What the device last reported of one control, and what its LED or colour was last told, as the twin draws it: `turns`, a relative control's revolutions, where its model states its ticks a revolution. */
-export type State = { down: boolean; shift: boolean; velocity: number; fraction: number | undefined; ticks: number; turns: number | undefined; lit: boolean | undefined; colour: number | undefined }
+export type State = { down: boolean; shift: boolean; velocity: number; fraction: number | undefined; ticks: number; turns: number | undefined; lit: boolean | undefined; colour: number | undefined; screen: JogShown; channel: string | undefined; at: number }
 
-export const initial = (): State => ({ down: false, shift: false, velocity: 0, fraction: undefined, ticks: 0, turns: undefined, lit: undefined, colour: undefined })
+export const initial = (_: unknown, at = 0): State => ({ down: false, shift: false, velocity: 0, fraction: undefined, ticks: 0, turns: undefined, lit: undefined, colour: undefined, screen: {}, channel: undefined, at })
 
 export type Sink = { set(patch: Partial<State>): void; flash(shift: boolean): void }
 
@@ -36,6 +37,22 @@ async function layers<C>(control: C, shifted: C | undefined, follow: (layer: C, 
 async function told<T>(control: Telling<T>, signal: AbortSignal, set: (value: T | undefined) => void): Promise<void> {
   set(control.told)
   for await (const value of control.toldChanges({ signal })) set(value)
+}
+
+/** Follows each output of a jog's screen as the driver last told it, a labelled one as its label. */
+async function screen(of: JogScreen, signal: AbortSignal, sink: Sink): Promise<void> {
+  let shown: JogShown = {}
+  const put = (field: keyof JogShown, value: number | string | undefined) => {
+    shown = { ...shown, [field]: value }
+    sink.set({ screen: shown })
+  }
+  const labelled = (out: JogScreen['key'], value: number | undefined) => (value === undefined || out.range === undefined ? undefined : out.labels?.[value - out.range[0]])
+  const numbers = ['bpm', 'speed', 'minutes', 'seconds', 'remaining', 'masterTempo', 'master', 'sync', 'marker', 'cue', 'hidden'] as const
+  await Promise.all([
+    ...numbers.map((field) => told(of[field], signal, (value) => put(field, value))),
+    told(of.key, signal, (value) => put('key', labelled(of.key, value))),
+    told(of.keyChange, signal, (value) => put('keyChange', labelled(of.keyChange, value))),
+  ])
 }
 
 /** Follows the `at`th control `part` shows, reading an absolute or relative control's latest-value stream once a frame. Rejects with the signal's reason once it aborts; resolves when the controller closes. */
@@ -101,7 +118,16 @@ export async function follow(part: Part, at: number, signal: AbortSignal, sink: 
     const [low, high] = control.range
     const fraction = (value: number) => Math.min(1, Math.max(0, (value - low) / Math.max(1, high - low)))
     await told(control, signal, (value) => sink.set({ fraction: value === undefined ? undefined : fraction(value) }))
-  } else if (part.shape === 'screen') {
-    await told(part.controls[at].control, signal, (value) => sink.set({ lit: value === undefined ? undefined : value > 0 }))
+  } else if (part.shape === 'jog') {
+    const ring = told(part.controls[at].control, signal, (value) => sink.set({ lit: value === undefined ? undefined : value > 0 }))
+    await Promise.all([ring, screen(part.screens[at], signal, sink)])
+  } else if (part.shape === 'display') {
+    const on = () => sink.set({ channel: part.channels.find((channel) => channel.on.on === true)?.text })
+    on()
+    await Promise.all(
+      part.channels.map(async (channel) => {
+        for await (const _ of channel.on.changes({ signal })) on()
+      }),
+    )
   }
 }
