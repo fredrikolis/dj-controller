@@ -1,0 +1,2 @@
+; Models: a white noise sweep, a resonant highpass rising from 200 Hz to 12 kHz over three seconds | Neglects: a stereo spread | IO: (t) -> amplitude | Tags: fx
+crop(0.85*tanh(1.5*highpass(sample(rand(t, seed=141)), cutoff=200*exp(1.36*t), q=3)*(0.3 + 0.7*t/3)), 0s, 3s, rise=0.01s, fall=0.05s)

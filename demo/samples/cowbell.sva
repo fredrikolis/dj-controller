@@ -1,0 +1,2 @@
+; Models: a cowbell, two bandpassed squares at 545 and 815 Hz ringing short | Neglects: the bell's shape | IO: (t) -> amplitude | Tags: drum
+crop(0.55*tanh(1.5*bandpass(sample(square(545) + square(815)), cutoff=900, q=1.4)*(0.6*exp(-t/0.25) + 0.4*exp(-t/0.02))), 0s, 0.7s, rise=0.0005s, fall=0.2s)

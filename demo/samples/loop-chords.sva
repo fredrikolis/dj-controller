@@ -1,0 +1,2 @@
+; Models: two bars of offbeat rave stabs, D minor then B flat then C | Neglects: a sidechain | IO: (t) -> amplitude | Tags: loop
+1.45*(0.55*(1*@voice-stab(t - 0.125b, f1=D4, f2=F4, f3=A4) + 1*@voice-stab(t - 0.375b, f1=D4, f2=F4, f3=A4) + 1*@voice-stab(t - 0.625b, f1=D4, f2=F4, f3=A4) + 1*@voice-stab(t - 0.8125b, f1=D4, f2=F4, f3=A4) + 1*@voice-stab(t - 1.125b, f1=Bb3, f2=D4, f3=F4) + 1*@voice-stab(t - 1.375b, f1=Bb3, f2=D4, f3=F4) + 1*@voice-stab(t - 1.625b, f1=C4, f2=E4, f3=G4) + 1*@voice-stab(t - 1.8125b, f1=C4, f2=E4, f3=G4)))

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "erasableSyntaxOnly": true,
+    "target": "es2023",
+    "lib": ["es2023", "esnext.disposable", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "rootDirs": ["..", "../../../target/boundary/pkg"]
+  },
+  "include": ["*.ts", "layouts/*.ts"]
+}

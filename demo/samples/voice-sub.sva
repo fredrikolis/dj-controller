@@ -1,0 +1,4 @@
+; Models: a sub bass note, a sine with a soft attack and a hint of second harmonic | Neglects: a filter | IO: (t, f0, len) -> amplitude | Tags: bass
+f0 = D1
+len = 0.25
+crop(0.85*tanh(1.4*(sin(2*pi*f0*t) + 0.15*sin(4*pi*f0*t))), 0s, len, rise=0.004s, fall=0.02s)

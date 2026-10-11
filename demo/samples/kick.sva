@@ -1,0 +1,2 @@
+; Models: a kick drum, a sine thump swept down from 300 Hz to 49 Hz with a click | Neglects: the shell and room | IO: (t) -> amplitude | Tags: drum
+crop(0.92*tanh(2.6*(0.95*sin(2*pi*(49*t + 260*0.012*(1 - exp(-t/0.012)) + 80*0.06*(1 - exp(-t/0.06))))*exp(-t/0.32) + 0.55*sin(2*pi*(110*t + 200*0.01*(1 - exp(-t/0.01))))*exp(-t/0.06) + 0.9*highpass(sample(rand(t, seed=3)), cutoff=3000, q=0.7)*exp(-t/0.005) + 0.3*sin(2*pi*190*t)*exp(-t/0.025))), 0s, 0.6s, rise=0.0003s, fall=0.15s)

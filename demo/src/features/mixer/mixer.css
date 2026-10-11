@@ -1,0 +1,11 @@
+/* Concern: the mixer's look in its section: two channel strips of EQ over a fader, the crossfader across both | Non-concern: the desk's grid (page.css) | IO: none */
+@scope (.mixer) {
+  :scope { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); align-content: start; }
+  :scope:empty { display: none; }
+  .channel { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+  label { display: grid; justify-items: center; font-size: 0.8rem; font-weight: 600; }
+  .eq { width: 5.5rem; touch-action: none; }
+  /* Max at the top, as a channel fader is. */
+  .fader { writing-mode: vertical-lr; direction: rtl; height: 9rem; touch-action: none; }
+  .crossfader { grid-column: 1 / -1; width: 100%; touch-action: none; }
+}

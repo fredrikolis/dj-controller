@@ -1,0 +1,3 @@
+; Models: a tom, a sine falling from a third above its pitch under a little skin noise | Neglects: the shell's other modes | IO: (t, f0) -> amplitude | Tags: drum
+f0 = 110
+crop(0.85*tanh(1.6*(sin(2*pi*(f0*t + 0.5*f0*0.04*(1 - exp(-t/0.04))))*exp(-t/0.25) + 0.25*bandpass(sample(rand(t, seed=71)), cutoff=4*f0, q=1.5)*exp(-t/0.03))), 0s, 0.8s, rise=0.0005s, fall=0.25s)

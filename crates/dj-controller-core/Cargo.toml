@@ -1,0 +1,20 @@
+# Concern: declares the platform-free protocol core and the version it inherits | Non-concern: any transport (dj-controller, dj-controller-cli) | IO: none
+[package]
+name = "dj-controller-core"
+description = "Platform-free protocol core for Pioneer DJ controllers: bytes in, typed messages out, and back"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+dj-controller-model = { workspace = true }
+futures-core = "0.3.31"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+
+[dev-dependencies]
+dj-controller-model = { workspace = true, features = ["mml"] }
+futures-lite = "2.6.1"
+
+[build-dependencies]
+dj-controller-model = { workspace = true, features = ["generate"] }

@@ -1,0 +1,2 @@
+; Models: a clave, a wooden tone at 2.5 kHz knocked short | Neglects: the second stick | IO: (t) -> amplitude | Tags: drum
+crop(0.8*(sin(2*pi*2500*t)*exp(-t/0.045) + 0.2*sin(2*pi*5100*t)*exp(-t/0.01)), 0s, 0.3s, rise=0.0002s, fall=0.08s)

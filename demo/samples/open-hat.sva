@@ -1,0 +1,2 @@
+; Models: an open hi-hat, the closed hat's metal ringing a quarter second | Neglects: the foot closing it | IO: (t) -> amplitude | Tags: drum
+@hat(t, dec=0.22)

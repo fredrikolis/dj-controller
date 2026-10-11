@@ -1,0 +1,2 @@
+; Models: one bar of claps on beats two and four | Neglects: a flam | IO: (t) -> amplitude | Tags: loop
+1*@clap(t - 0.25b) + 1*@clap(t - 0.75b)

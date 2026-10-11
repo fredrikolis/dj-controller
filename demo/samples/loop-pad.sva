@@ -1,0 +1,2 @@
+; Models: four bars of a slow pad, D minor, B flat, F, C | Neglects: voice leading | IO: (t) -> amplitude | Tags: loop
+0.75*(@voice-pad(t, f1=D4, f2=F4, f3=A4, len=1.0b) + @voice-pad(t - 1.0b, f1=Bb3, f2=D4, f3=F4, len=1.0b) + @voice-pad(t - 2.0b, f1=F3, f2=A3, f3=C4, len=1.0b) + @voice-pad(t - 3.0b, f1=C4, f2=E4, f3=G4, len=1.0b))

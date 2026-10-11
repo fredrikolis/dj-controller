@@ -1,0 +1,18 @@
+# Concern: declares the terminal tool that prints a controller's messages and builds the npm package | Non-concern: decoding them (dj-controller-core), the package's files | IO: none
+[package]
+name = "dj-controller-cli"
+description = "Prints a plugged-in Pioneer DJ controller's messages live, decoded by dj-controller-core, and builds the dj-controller npm package"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "dj-controller-cli"
+path = "src/main.rs"
+
+[dependencies]
+async-channel = "2.3.1"
+async-io = "2.4.0"
+blocking = "1.6.1"
+dj-controller-core = { workspace = true }
+futures-lite = "2.6.1"

@@ -1,0 +1,2 @@
+; Models: a riser over four seconds, noise and a saw both sweeping up five octaves | Neglects: a drum roll under it | IO: (t) -> amplitude | Tags: fx
+crop(1*tanh(1.5*(bandpass(sample(rand(t, seed=111)), cutoff=300*exp(0.9*t), q=3) + 0.35*(sin(2*pi*55*(exp(0.9*t) - 1)/0.9) + 0.5*sin(4*pi*55*(exp(0.9*t) - 1)/0.9)))*(0.15 + 0.85*t/4)), 0s, 4s, rise=0.01s, fall=0.05s)

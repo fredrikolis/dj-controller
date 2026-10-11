@@ -1,0 +1,8 @@
+# Concern: excludes build output, the dev certificate and scratch from version control | Non-concern: what gets built | IO: none
+/target
+/crates/dj-controller/pkg
+/.dev-cert
+/.claude
+__pycache__/
+/demo/node_modules
+/demo/dist

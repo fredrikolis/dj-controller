@@ -1,0 +1,2 @@
+; Models: a ride cymbal, a bell ping over a long wash of bandpassed metal | Neglects: the cymbal's modes beyond four | IO: (t) -> amplitude | Tags: drum
+crop(0.5*(0.5*sin(2*pi*3150*t)*exp(-t/0.35) + 0.35*sin(2*pi*4620*t)*exp(-t/0.25) + 0.9*bandpass(sample(square(611)*square(887) + rand(t, seed=61)), cutoff=7000, q=0.9)*(0.3*exp(-t/0.7) + 0.7*exp(-t/0.04))), 0s, 1.6s, rise=0.0003s, fall=0.6s)

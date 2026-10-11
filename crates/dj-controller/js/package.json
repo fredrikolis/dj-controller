@@ -1,0 +1,15 @@
+{
+  "name": "dj-controller",
+  "version": "__VERSION__",
+  "description": "A browser driver for Pioneer DJ controllers over Web MIDI: every control as a typed, async object",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/fredrikolis/dj-controller.git" },
+  "type": "module",
+  "sideEffects": ["./twin/index.js"],
+  "exports": {
+    ".": { "types": "./index.d.ts", "default": "./index.js" },
+    "./diagnostics": { "types": "./diagnostics.d.ts", "default": "./diagnostics.js" },
+    "./twin": { "types": "./twin.d.ts", "default": "./twin/index.js" }
+  },
+  "files": ["*.js", "*.d.ts", "*.wasm", "snippets", "diagnostics", "twin"]
+}

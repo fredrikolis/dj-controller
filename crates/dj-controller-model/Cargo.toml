@@ -1,0 +1,17 @@
+# Concern: declares the model crate: every model's data file, read and checked, and the object tree its surface names | Non-concern: decoding, state, sending (dj-controller-core) | IO: none
+[package]
+name = "dj-controller-model"
+description = "Pioneer DJ controller models as data: each model file read and checked, the MIDI it is written in, and its surface"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+# The official MIDI lists' rows, for the core's tests to check each model file against.
+mml = []
+# Writes each model's typed Rust, TypeScript and wasm projection, for build scripts.
+generate = []
+
+[dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"

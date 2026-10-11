@@ -1,0 +1,20 @@
+/* Concern: the loops' look in its deck's grid: the loop over the song, its beats, loop buttons lit or blinking as the FLX10's, the pads | Non-concern: the deck's grid (page.css) | IO: none */
+@scope (.deck) {
+  .loops { grid-area: loop; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+  .loop-strip { position: relative; flex: 1 1 100%; height: 0.6rem; border-radius: 0.3rem; background: var(--dj-twin-pad); overflow: hidden; }
+  .loop-strip > span { position: absolute; top: 0; bottom: 0; }
+  .region { left: var(--in); width: calc(var(--out) - var(--in)); min-width: 2px; background: var(--dj-twin-line); }
+  .region.active { background: var(--dj-twin-lit); }
+  .pending, .head { left: var(--at); width: 2px; margin-left: -1px; }
+  .pending { background: var(--dj-twin-lit); }
+  .head { background: var(--dj-twin-ink); }
+  .loop-beats { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .loops button { padding: 0.35rem 0.55rem; font-size: 0.7rem; font-weight: 700; }
+  .quantize[aria-pressed="true"], [data-light="on"] { background: var(--dj-twin-lit); color: var(--dj-twin-on-down); }
+  /* Blinking as the FLX10's LEDs do: 500 ms, the adjusted point at double rate. */
+  [data-light="blink"] { animation: loop-blink 500ms steps(1) infinite; }
+  [data-light="fast"] { animation: loop-blink 250ms steps(1) infinite; }
+  .beat-loop { flex: 1 1 100%; display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.3rem; }
+  .beat-loop .pad { padding: 0.35rem 0; background: var(--dj-twin-pad); }
+}
+@keyframes loop-blink { 0% { background: var(--dj-twin-lit); color: var(--dj-twin-on-down); } 50% { background: var(--dj-twin-panel); color: var(--dj-twin-ink); } }

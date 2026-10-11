@@ -1,0 +1,2 @@
+; Models: a plucked D minor seventh chord | Neglects: what voice-pluck neglects | IO: (t) -> amplitude | Tags: stab
+0.42*(@voice-pluck(t, f0=D4, len=0.8) + @voice-pluck(t, f0=F4, len=0.8) + @voice-pluck(t, f0=A4, len=0.8) + @voice-pluck(t, f0=C5, len=0.8))

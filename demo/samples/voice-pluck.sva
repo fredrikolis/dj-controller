@@ -1,0 +1,4 @@
+; Models: a plucked note, a triangle and a narrow pulse decaying fast through a closing lowpass | Neglects: the string | IO: (t, f0, len) -> amplitude | Tags: stab
+f0 = D4
+len = 0.5
+crop(0.5*lowpass(sample(triangle(f0) + 0.5*(saw(f0) - saw(f0, 0.6*pi))), cutoff=700 + 5000*exp(-t/0.06), q=1.2)*exp(-t/0.2), 0s, len, rise=0.001s, fall=0.03s)

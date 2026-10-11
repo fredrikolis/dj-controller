@@ -1,0 +1,2 @@
+; Models: an A major rave stab, the D minor key's dominant | Neglects: what voice-stab neglects | IO: (t) -> amplitude | Tags: stab
+@voice-stab(t, f1=A3, f2=Cs4, f3=E4)

@@ -1,0 +1,11 @@
+/* Concern: the PAD FX look in its deck's grid: bank buttons, 16 pads in their effects' colours, the whitest while on; the page showing's names | Non-concern: the deck's grid (page.css) | IO: none */
+@scope (.deck) {
+  .pad-fx, .pad-fx-display { --fx: var(--dj-twin-pad); grid-area: fx; }
+  .pad-fx { display: grid; gap: 0.3rem; }
+  .pad-fx-banks { display: flex; gap: 0.3rem; }
+  .pad-fx button { padding: 0.35rem 0.55rem; font-size: 0.7rem; font-weight: 700; }
+  .pad-fx-banks [aria-pressed="true"] { background: var(--dj-twin-lit); color: var(--dj-twin-on-down); }
+  .pad-fx-pads, .pad-fx-display { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.3rem; }
+  .pad-fx-pads .pad, .pad-fx-name { padding: 0.35rem 0.1rem; font-size: 0.6rem; font-weight: 700; text-align: center; background: color-mix(in srgb, var(--fx) 45%, var(--dj-twin-pad)); color: var(--dj-twin-ink); border-radius: var(--radius-control); }
+  .pad-fx-pads [data-on="true"], .pad-fx-name[data-on="true"] { background: var(--dj-twin-lit); color: var(--dj-twin-on-down); }
+}

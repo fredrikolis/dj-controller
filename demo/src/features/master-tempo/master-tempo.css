@@ -1,0 +1,10 @@
+/* Concern: master tempo's look in its deck's grid: the BPM, a pending BPM dimmed, the MASTER TEMPO button lit while on, TAP | Non-concern: the deck's grid itself (page.css) | IO: none */
+@scope (.deck) {
+  .bpm { grid-area: bpm; font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* A BPM asked for, dim until its render plays. */
+  .pending { margin-left: 0.4em; font-size: 0.6em; color: var(--dj-twin-line); }
+  .pending::before { content: "\2192\FE0E\00A0"; }
+  .master-tempo { grid-area: lock; justify-self: center; width: 4.6rem; padding: 0.3rem; font-size: 0.65rem; font-weight: 700; line-height: 1.15; }
+  .tap { grid-area: tap; justify-self: end; padding: 0.35rem 0.55rem; font-size: 0.7rem; font-weight: 700; }
+  .master-tempo[aria-pressed="true"] { background: var(--dj-twin-lit); color: var(--dj-twin-on-down); }
+}

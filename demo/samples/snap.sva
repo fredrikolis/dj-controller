@@ -1,0 +1,2 @@
+; Models: a finger snap, a short crack of noise around 2.6 kHz | Neglects: the fingers | IO: (t) -> amplitude | Tags: drum
+crop(0.9*tanh(3.5*(bandpass(sample(rand(t, seed=91)), cutoff=2600, q=1.8)*exp(-t/0.018) + 0.5*highpass(sample(rand(t, seed=92)), cutoff=6000, q=0.7)*exp(-t/0.006))), 0s, 0.2s, rise=0.0002s, fall=0.05s)

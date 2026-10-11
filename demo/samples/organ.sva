@@ -1,0 +1,2 @@
+; Models: an organ stab on D minor, four drawbars of sines per note with a key click | Neglects: the rotary speaker | IO: (t) -> amplitude | Tags: stab
+crop(0.85*tanh(0.25*((sin(2*pi*D4*t) + 0.6*sin(4*pi*D4*t) + 0.4*sin(6*pi*D4*t) + 0.3*sin(8*pi*D4*t)) + (sin(2*pi*F4*t) + 0.6*sin(4*pi*F4*t) + 0.4*sin(6*pi*F4*t) + 0.3*sin(8*pi*F4*t)) + (sin(2*pi*A4*t) + 0.6*sin(4*pi*A4*t) + 0.4*sin(6*pi*A4*t) + 0.3*sin(8*pi*A4*t))))*(0.5 + 0.5*exp(-t/0.25)) + 0.15*bandpass(sample(rand(t, seed=101)), cutoff=2500, q=1)*exp(-t/0.004), 0s, 0.55s, rise=0.001s, fall=0.12s)

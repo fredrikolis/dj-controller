@@ -1,0 +1,2 @@
+; Models: one bar of sixteenth closed hats, accented on the eighths, an open hat on each offbeat | Neglects: swing | IO: (t) -> amplitude | Tags: loop
+1*@hat(t) + 0.45*@hat(t - 0.0625b) + 0.45*@hat(t - 0.1875b) + 1*@hat(t - 0.25b) + 0.45*@hat(t - 0.3125b) + 0.45*@hat(t - 0.4375b) + 1*@hat(t - 0.5b) + 0.45*@hat(t - 0.5625b) + 0.45*@hat(t - 0.6875b) + 1*@hat(t - 0.75b) + 0.45*@hat(t - 0.8125b) + 0.45*@hat(t - 0.9375b) + 0.55*@open-hat(t - 0.125b) + 0.55*@open-hat(t - 0.375b) + 0.55*@open-hat(t - 0.625b) + 0.55*@open-hat(t - 0.875b)

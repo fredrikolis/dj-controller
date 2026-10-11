@@ -1,0 +1,89 @@
+# Concern: the checks every push and pull request to main must clear, less the cross-target lints | Non-concern: tagging, publishing, deploying | IO: (push, pull_request) -> pass/fail
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  ANNOTATED_TREE_VERSION: "0.7.0"
+  COMMENT_CRUSHER_VERSION: "0.2.1"
+
+jobs:
+  # The local pre-commit gate's checks, less its cross-target lints.
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: gates
+          cache-bin: false
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-annotated-tree-${{ env.ANNOTATED_TREE_VERSION }}-comment-crusher-${{ env.COMMENT_CRUSHER_VERSION }}
+      - run: cargo install --locked annotated-tree@${{ env.ANNOTATED_TREE_VERSION }} comment-crusher@${{ env.COMMENT_CRUSHER_VERSION }}
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: "v0.15.0"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo clippy -p dj-controller-model -p dj-controller-core -p dj-controller --target wasm32-unknown-unknown --all-targets --locked -- -D warnings
+      - run: cargo clippy -p dj-controller --target wasm32-unknown-unknown --all-targets --no-default-features --locked -- -D warnings
+      - run: comment-crusher --config .comment-crusher.toml .
+      - run: annotated-tree --strict-check --include-tests --hidden .
+      # Includes the boundary tests: the package built, packed, installed and imported in Node.
+      - run: cargo test --workspace --locked
+      - run: npx -y -p typescript@5.9.3 tsc -p crates/dj-controller/twin
+
+  # The release build of the package as npm would publish it, and the demo built on it before it is published.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: package
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: "v0.15.0"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: cargo run --locked --quiet -p dj-controller-cli -- package target/pkg
+      - run: npm publish --dry-run --access public ./target/pkg
+      - name: Check the demo pins the version this build publishes
+        run: test "$(node -p "require('./demo/package.json').dependencies['dj-controller']")" = "$(node -p "require('./target/pkg/package.json').version")"
+      - name: Check the demo's lockfile matches its manifest
+        working-directory: demo
+        run: npm ci --dry-run
+      - name: Pack the unreleased package
+        run: npm pack --pack-destination target ./target/pkg
+      - name: Install the demo with the unreleased package in place of the published one
+        working-directory: demo
+        run: npm install --no-save ../target/dj-controller-*.tgz
+      - working-directory: demo
+        run: npm run check && npm test && npm run build

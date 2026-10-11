@@ -1,0 +1,2 @@
+; Models: a reversed crash cymbal swelling over two seconds into a cut | Neglects: the cymbal's attack, here its end | IO: (t) -> amplitude | Tags: fx
+crop(0.88*highpass(sample(rand(t, seed=151) + 0.3*square(523)*square(737)), cutoff=4000, q=0.7)*exp((t - 2)/0.5), 0s, 2s, rise=0.01s, fall=0.004s)

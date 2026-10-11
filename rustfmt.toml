@@ -1,0 +1,4 @@
+# Concern: the Rust formatting style this repo holds itself to | Non-concern: what fmt checks (the pre-commit gate owns that) | IO: none
+style_edition = "2024"
+max_width = 120
+use_small_heuristics = "Max"

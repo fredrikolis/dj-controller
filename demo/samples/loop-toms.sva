@@ -1,0 +1,2 @@
+; Models: two bars of a tom groove rolling low to high | Neglects: a kick under it | IO: (t) -> amplitude | Tags: loop
+0.7*(1*@tom-low(t) + 0.8*@tom-low(t - 0.375b) + 1*@tom-low(t - 1.0b) + 0.8*@tom-low(t - 1.375b) + 0.8*@tom-mid(t - 0.1875b) + 0.9*@tom-mid(t - 0.625b) + 0.8*@tom-mid(t - 1.1875b) + 0.8*@tom-mid(t - 1.625b) + 0.7*@tom-mid(t - 1.75b) + 0.8*@tom-high(t - 0.5b) + 0.7*@tom-high(t - 0.8125b) + 0.8*@tom-high(t - 1.5b) + 0.8*@tom-high(t - 1.875b) + 0.6*@tom-high(t - 1.9375b))

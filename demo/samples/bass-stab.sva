@@ -1,0 +1,2 @@
+; Models: a growled bass stab on D2, two detuned saws through a resonant lowpass sweeping down | Neglects: any sub below the fundamental | IO: (t) -> amplitude | Tags: stab
+crop(0.85*tanh(2.5*lowpass(sample(saw(D2*7ct) + saw(D2/7ct) + 0.6*square(D2/2)), cutoff=180 + 2400*exp(-t/0.09), q=4))*exp(-t/0.45), 0s, 0.6s, rise=0.002s, fall=0.1s)

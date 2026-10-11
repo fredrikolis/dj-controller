@@ -1,0 +1,2 @@
+; Models: a dub siren, a square swept up and down an octave four times a second | Neglects: the oscillator's drift | IO: (t) -> amplitude | Tags: fx
+crop(0.5*tanh(1.6*lowpass(sample(square(950, -2*pi*250*t - (250/4)*cos(2*pi*4*t))), cutoff=3500, q=0.9)), 0s, 8s, rise=0.005s, fall=0.05s)

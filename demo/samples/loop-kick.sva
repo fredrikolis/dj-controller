@@ -1,0 +1,2 @@
+; Models: one bar of four-on-the-floor kicks | Neglects: any fill | IO: (t) -> amplitude | Tags: loop
+0.62*(1*@kick(t) + 1*@kick(t - 0.25b) + 1*@kick(t - 0.5b) + 1*@kick(t - 0.75b))

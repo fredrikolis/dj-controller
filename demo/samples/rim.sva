@@ -1,0 +1,2 @@
+; Models: a rimshot, a bright crack of bandpassed noise and a 1.7 kHz ping | Neglects: the drum under it | IO: (t) -> amplitude | Tags: drum
+crop(1.25*(0.6*bandpass(sample(rand(t, seed=51)), cutoff=3800, q=3)*exp(-t/0.012) + 0.5*sin(2*pi*1700*t)*exp(-t/0.01) + 0.3*sin(2*pi*480*t)*exp(-t/0.02)), 0s, 0.12s, rise=0.0002s, fall=0.03s)

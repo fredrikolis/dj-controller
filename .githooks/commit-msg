@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Concern: the gate declarations for this repo | Non-concern: how a gate is checked (git-agent-verdict owns that) or what a reviewer judges | IO: (message, tool version) -> status, edited message
+
+set -euo pipefail
+
+git agent-verdict --require-version 2.3
+
+git agent-verdict "$1" standards --model sonnet \
+  --standard programming --standard testing \
+  --rule "The driver reports what the hardware does and sends what it is told: controls named by physical identity (deck, section, control) at the device's full resolution, outputs as raw as the device takes them. No application policy (no 'scratch', 'nudge', 'hot cue'), and nothing that depends on a consumer of the driver." \
+  --rule "dj-controller-core, the protocol core, does no I/O and binds no platform; every transport decodes and encodes through it rather than its own copy." \
+  --rule "Every hardware protocol fact in code (a status byte, a note or control number, a sysex layout, a device or port name, a USB id, a HID report layout) cites where it came from: the official MIDI list (document and page or row), a capture file in the repo, or a dated observation. An unobserved assumption says so." \
+  --rule "No test asserts on wall-clock time." \
+  --rule "Browser tests (Playwright) are a last resort for scratch checks only: never committed, never a gate; prefer unit tests of the core." \
+  --rule "No test freezes visual, aesthetic or copy choices; the owner judges those live." \
+  --rule "State that can disagree is refactored to one canonical owner and derived, never kept in sync; a cache is still compliant with this rule if every source change evicts it." \
+  --path .
+
+git agent-verdict "$1" frontend --model sonnet \
+  --standard frontend --standard ai-design-violations --standard human-communication \
+  --rule "Forbidden frontend patterns: persistent status text; labels announcing content instead of stating it; repeated labels, reset or 'how it works' links around one control; filler metadata or sections added because sites have them; chrome around the core experience; visuals whose colour, motion or position carries no meaning." \
+  --path crates/dj-controller/twin --path demo

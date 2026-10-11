@@ -1,0 +1,2 @@
+; Models: a C major rave stab | Neglects: what voice-stab neglects | IO: (t) -> amplitude | Tags: stab
+@voice-stab(t, f1=C4, f2=E4, f3=G4)

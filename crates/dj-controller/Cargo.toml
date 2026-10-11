@@ -1,0 +1,69 @@
+# Concern: declares the browser package's cdylib, the web APIs it binds and its build-time types | Non-concern: decoding (dj-controller-core), the npm package's JS entries (js/) | IO: none
+[package]
+name = "dj-controller"
+description = "Browser transports for Pioneer DJ controllers over Web MIDI, WebHID and WebUSB, decoded and encoded by dj-controller-core, as a wasm package"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# On so the gates lint and test it; `dj-controller-cli package` builds the main wasm without it.
+default = ["diagnostics"]
+# The diagnostics entry's wasm: inspect, raw sends, syncs, repeats, WebHID, WebUSB.
+diagnostics = []
+
+[dependencies]
+dj-controller-core = { workspace = true }
+futures-lite = { version = "2.6.1", default-features = false, features = ["alloc"] }
+serde = "1.0.228"
+serde-wasm-bindgen = "0.6.5"
+js-sys = "0.3.106"
+wasm-bindgen = "0.2.129"
+wasm-bindgen-futures = "0.4.79"
+web-sys = { version = "0.3.106", features = [
+    "AbortController",
+    "AbortSignal",
+    "AddEventListenerOptions",
+    "Event",
+    "EventTarget",
+    "Hid",
+    "HidDevice",
+    "HidDeviceFilter",
+    "HidDeviceRequestOptions",
+    "HidInputReportEvent",
+    "MidiAccess",
+    "MidiConnectionEvent",
+    "MidiInput",
+    "MidiInputMap",
+    "MidiMessageEvent",
+    "MidiOptions",
+    "MidiOutput",
+    "MidiOutputMap",
+    "MidiPort",
+    "MidiPortDeviceState",
+    "Navigator",
+    "Performance",
+    "Usb",
+    "UsbControlTransferParameters",
+    "UsbDevice",
+    "UsbDeviceFilter",
+    "UsbDeviceRequestOptions",
+    "UsbOutTransferResult",
+    "UsbRecipient",
+    "UsbRequestType",
+    "UsbTransferStatus",
+    "Window",
+] }
+
+[dev-dependencies]
+serde_json = "1.0.149"
+
+[build-dependencies]
+dj-controller-core = { workspace = true }
+dj-controller-model = { workspace = true, features = ["generate"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(web_sys_unstable_apis)"] }

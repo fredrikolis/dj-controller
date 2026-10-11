@@ -1,0 +1,5 @@
+/* Concern: the sync master's look in its deck's grid: MASTER under the platter's left, lit on the master deck | Non-concern: the deck's grid itself (page.css) | IO: none */
+@scope (.deck) {
+  .sync-master { grid-area: platter; align-self: end; justify-self: start; padding: 0.35rem 0.55rem; font-size: 0.7rem; font-weight: 700; }
+  .sync-master[aria-pressed="true"] { background: var(--dj-twin-lit); color: var(--dj-twin-on-down); }
+}

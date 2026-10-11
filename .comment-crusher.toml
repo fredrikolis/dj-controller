@@ -1,0 +1,3 @@
+# Concern: the comment budget this repo holds itself to | Non-concern: what makes a comment worth keeping | IO: none
+[rules.comment-ratio]
+min_chars = 1000

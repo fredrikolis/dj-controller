@@ -1,0 +1,2 @@
+; Models: a reggae air horn, three dissonant bandpassed saws blown dah, dah, daaah | Neglects: the horn's bell | IO: (t) -> amplitude | Tags: fx
+crop(0.55*tanh(2.5*bandpass(sample(saw(466) + saw(554) + saw(698) + 0.5*saw(932)), cutoff=1400, q=0.8))*(crop(1, 0s, 0.13s, rise=0.008s, fall=0.02s) + crop(1, 0.18s, 0.31s, rise=0.008s, fall=0.02s) + crop(1, 0.36s, 1.1s, rise=0.008s, fall=0.12s)), 0s, 1.15s)

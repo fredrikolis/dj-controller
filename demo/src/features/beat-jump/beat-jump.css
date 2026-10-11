@@ -1,0 +1,7 @@
+/* Concern: the beat jump's look in its deck's grid: 4 BEAT JUMP ◀ and ▶, the BEAT JUMP pads a page a row | Non-concern: the deck's grid itself (page.css) | IO: none */
+@scope (.deck) {
+  .beat-jump { grid-area: jump; display: flex; gap: 0.3rem; }
+  .beat-jump button, .beat-jump-pads button { padding: 0.35rem 0.55rem; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+  .beat-jump-pads { grid-area: jumps; display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.3rem; }
+  .beat-jump-pads .pad { padding-inline: 0; background: var(--dj-twin-pad); }
+}

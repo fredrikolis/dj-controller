@@ -1,0 +1,19 @@
+/* Concern: the key shift's look in its deck's grid: the key by the BPM, one asked dimmed, the key buttons, 16 pads in their pitches' colours | Non-concern: the deck's grid (page.css) | IO: none */
+@scope (.deck) {
+  .key { grid-area: key; justify-self: end; display: flex; align-items: baseline; gap: 0.4em; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .key-change { font-size: 0.75em; color: var(--dj-twin-line); }
+  .key .pending { font-size: 0.75em; color: var(--dj-twin-line); }
+  .key .pending::before { content: "\2192\FE0E\00A0"; }
+  .key-buttons { grid-area: keys; display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .key-buttons button { padding: 0.35rem 0.55rem; font-size: 0.7rem; font-weight: 700; }
+  .key-buttons [aria-pressed="true"] { background: var(--dj-twin-lit); color: var(--dj-twin-on-down); }
+  .key-pads { --zero: var(--dj-twin-ink); --up: var(--dj-twin-ink); --down: var(--dj-twin-ink); --cue: var(--dj-twin-ink); --hot-loop: var(--dj-twin-ink); grid-area: pitches; display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+  .key-page { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; }
+  .key-page .pad { padding: 0.35rem 0; font-size: 0.7rem; font-weight: 700; background: var(--dj-twin-pad); color: var(--dj-twin-line); }
+  .key-page [data-light="zero"] { background: var(--zero); color: var(--dj-twin-pad); }
+  .key-page [data-light="up"] { background: var(--up); color: var(--dj-twin-pad); }
+  .key-page [data-light="down"] { background: var(--down); color: var(--dj-twin-pad); }
+  .key-page [data-light="cue"] { background: var(--cue); color: var(--dj-twin-pad); }
+  .key-page [data-light="loop"] { background: var(--hot-loop); color: var(--dj-twin-pad); }
+  .key-page [data-on="true"] { background: var(--dj-twin-lit); color: var(--dj-twin-on-down); }
+}

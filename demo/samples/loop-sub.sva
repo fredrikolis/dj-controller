@@ -1,0 +1,2 @@
+; Models: two bars of sub bass, D then B flat then C, on the beat and pushed | Neglects: anything above 150 Hz | IO: (t) -> amplitude | Tags: loop
+@voice-sub(t, f0=D1, len=0.1875b) + @voice-sub(t - 0.1875b, f0=D1, len=0.1875b) + @voice-sub(t - 0.375b, f0=D1, len=0.125b) + @voice-sub(t - 0.625b, f0=D2, len=0.125b) + @voice-sub(t - 0.75b, f0=D1, len=0.25b) + @voice-sub(t - 1.0b, f0=Bb0, len=0.1875b) + @voice-sub(t - 1.1875b, f0=Bb0, len=0.1875b) + @voice-sub(t - 1.375b, f0=C1, len=0.125b) + @voice-sub(t - 1.625b, f0=C2, len=0.125b) + @voice-sub(t - 1.75b, f0=C1, len=0.25b)

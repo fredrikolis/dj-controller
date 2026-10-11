@@ -1,0 +1,23 @@
+{
+  "name": "dj-controller-demo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Two static pages, the shortest example and a desk of two scalable vector audio decks, played from a DDJ-FLX10 or the page itself: a consumer of the dj-controller package",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "check": "tsc -p . && tsc -p tsconfig.test.json",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@scalable-vector-audio/sva-wasm": "0.8.1",
+    "dj-controller": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vite": "8.3.4"
+  }
+}

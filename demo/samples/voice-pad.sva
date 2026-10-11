@@ -1,0 +1,6 @@
+; Models: a pad chord, six detuned saws through a soft lowpass breathing slowly | Neglects: a chorus | IO: (t, f1, f2, f3, len) -> amplitude | Tags: pad
+f1 = D4
+f2 = F4
+f3 = A4
+len = 1
+crop(0.22*lowpass(sample(saw(f1*10ct) + saw(f1/10ct) + saw(f2*10ct) + saw(f2/10ct) + saw(f3*10ct) + saw(f3/10ct) + 0.8*saw(f1/2)), cutoff=900 + 500*sin(2*pi*0.3*t), q=0.9), 0s, len, rise=0.25s, fall=0.3s)

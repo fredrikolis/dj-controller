@@ -1,0 +1,2 @@
+; Models: the low tom, on 82 Hz | Neglects: what the tom node neglects | IO: (t) -> amplitude | Tags: drum
+@tom(t, f0=82)

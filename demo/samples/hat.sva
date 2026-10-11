@@ -1,0 +1,3 @@
+; Models: a closed hi-hat, highpassed noise over six metallic squares, choked short | Neglects: the cymbal pair's modes | IO: (t, dec) -> amplitude | Tags: drum
+dec = 0.03
+crop(1.4*highpass(sample(rand(t, seed=31) + 0.12*(square(317) + square(421) + square(543) + square(612) + square(777) + square(901))), cutoff=7500, q=0.8)*exp(-t/dec), 0s, 8*dec + 0.01s, rise=0.0003s, fall=2*dec)

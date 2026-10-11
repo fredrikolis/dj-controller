@@ -1,0 +1,17 @@
+# Concern: declares the resolver, the members, and the version every crate inherits | Non-concern: any crate's own dependencies, the deny edges (.annotated-tree.toml) | IO: none
+[workspace]
+resolver = "2"
+members = ["crates/dj-controller-model", "crates/dj-controller-core", "crates/dj-controller", "crates/dj-controller-cli"]
+
+[workspace.package]
+version = "0.1.0"
+license = "MIT"
+edition = "2024"
+
+[workspace.dependencies]
+dj-controller-model = { path = "crates/dj-controller-model", version = "0.1.0" }
+dj-controller-core = { path = "crates/dj-controller-core", version = "0.1.0" }
+
+[profile.release]
+lto = true
+codegen-units = 1

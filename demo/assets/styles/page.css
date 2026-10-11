@@ -1,0 +1,62 @@
+/* Concern: the page's look: tokens, controls, header, the desk's grid and each deck's areas, coloured by the twin's --dj-twin-* tokens | Non-concern: a feature's own controls (its stylesheet) | IO: none */
+:root { --gap: 1rem; --radius-control: 6px; --radius-panel: 14px; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--dj-twin-page); color: var(--dj-twin-ink); font: 15px/1.4 "Helvetica Neue", Arial, sans-serif; }
+button, input { font: inherit; color: inherit; }
+button { padding: 0.45rem 0.8rem; border: 1px solid var(--dj-twin-line); border-radius: var(--radius-control); background: var(--dj-twin-panel); cursor: pointer; }
+button:disabled { cursor: default; border-style: dashed; color: var(--dj-twin-line); }
+:focus-visible { outline: 2px solid var(--dj-twin-down); outline-offset: 2px; }
+
+header { display: flex; gap: var(--gap); padding: var(--gap) max(16px, 2vw) 0; }
+#error { margin: var(--gap) max(16px, 2vw) 0; }
+dj-controller-twin { display: block; margin: var(--gap) auto 0; max-width: 90rem; padding: 0 max(16px, 2vw); }
+
+/* Two decks either side of the mixer, stacked on a narrow screen. */
+#desk { display: grid; grid-template-columns: 1fr minmax(12rem, 16rem) 1fr; gap: var(--gap); max-width: 72rem; margin: var(--gap) auto; padding: 0 max(16px, 2vw); }
+@media (max-width: 760px) { #desk { grid-template-columns: 1fr; } }
+#desk[data-connected] { grid-template-columns: 1fr 1fr; max-width: 90rem; }
+#desk > section { background: var(--dj-twin-panel); border-radius: var(--radius-panel); padding: var(--gap); }
+#desk > .sampler, #desk > .effects { grid-column: 1 / -1; }
+
+/* The areas features place their controls in; connected, title, TEMPO range, BPM, key, loop, hot and memory cues and PAD FX stay under the twin. */
+.deck { display: grid; grid-template-columns: auto auto auto 1fr auto auto; grid-template-areas: "title title title tap range bpm" "platter platter platter platter platter tempo" "shift cue play jump jump lock" "keys keys keys keys keys key" "loop loop loop loop loop loop" "jumps jumps jumps jumps jumps jumps" "cues cues cues cues cues cues" "memory memory memory memory memory memory" "pitches pitches pitches pitches pitches pitches" "fx fx fx fx fx fx"; gap: 0.75rem var(--gap); align-items: center; }
+#desk[data-connected] .deck { grid-template-columns: 1fr auto auto; grid-template-areas: "title range bpm" ". . key" "loop loop loop" "cues cues cues" "memory memory memory" "fx fx fx"; }
+.deck > .shift { grid-area: shift; padding: 0.35rem 0.55rem; font-size: 0.7rem; font-weight: 700; }
+.deck > .shift[aria-pressed="true"] { background: var(--dj-twin-lit); color: var(--dj-twin-on-down); }
+
+/* A desktop with no controller: one page. A deck's player sits beside its pads on half-rem rows, neither column pushing the other. */
+@media (min-width: 1280px) {
+  header { padding-top: 0.5rem; }
+  #desk:not([data-connected]) { --gap: 0.6rem; grid-template-columns: 1fr 12.5rem 1fr; max-width: none; margin: 0.5rem 0; padding: 0 16px; }
+  #desk:not([data-connected]) > .effects { grid-column: 1 / 3; }
+  #desk:not([data-connected]) > .sampler { grid-column: 3; }
+  #desk:not([data-connected]) > .deck { grid-template-columns: 3.3rem 2.9rem 2.9rem 2.3rem 2.3rem 2.3rem minmax(0, 1fr); grid-template-rows: repeat(62, 0.5rem); grid-template-areas: none; gap: 0 0.45rem; align-items: start; }
+  #desk:not([data-connected]) .deck > .title { grid-area: 1 / 1 / 5 / 5; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #desk:not([data-connected]) .deck > .bpm { grid-area: 1 / 5 / 5 / 7; justify-self: end; font-size: 1.25rem; line-height: 1.2; }
+  #desk:not([data-connected]) .deck > .tap { grid-area: 5 / 1 / 10 / 2; justify-self: start; }
+  #desk:not([data-connected]) .deck > .tempo-range { grid-area: 5 / 2 / 10 / 4; justify-self: start; }
+  #desk:not([data-connected]) .deck > .key { grid-area: 5 / 4 / 10 / 7; }
+  #desk:not([data-connected]) .deck > :is(.platter, .vinyl, .reverse, .sync-master) { grid-area: 10 / 1 / 33 / 6; }
+  #desk:not([data-connected]) .deck > .platter { width: 10.5rem; }
+  #desk:not([data-connected]) .deck > .sync-master { align-self: end; margin-bottom: 0.9rem; }
+  #desk:not([data-connected]) .deck > .tempo { grid-area: 10 / 6 / 33 / 7; min-height: 0; height: 10.5rem; justify-self: center; }
+  #desk:not([data-connected]) .deck > .shift { grid-area: 33 / 1 / 40 / 2; align-self: center; padding-inline: 0.3rem; }
+  #desk:not([data-connected]) .deck > .cue { grid-area: 33 / 2 / 40 / 3; }
+  #desk:not([data-connected]) .deck > .play { grid-area: 33 / 3 / 40 / 4; }
+  #desk:not([data-connected]) .deck > :is(.cue, .play) { width: 2.8rem; height: 2.8rem; font-size: 0.75rem; }
+  #desk:not([data-connected]) .deck > .beat-jump { grid-area: 33 / 4 / 40 / 7; align-self: center; justify-self: end; }
+  #desk:not([data-connected]) .deck > .key-buttons { grid-area: 40 / 1 / 50 / 7; }
+  #desk:not([data-connected]) .deck > .master-tempo { grid-area: 51 / 5 / 63 / 7; justify-self: end; }
+  #desk:not([data-connected]) .deck > .memory-cues { grid-area: 51 / 1 / 63 / 5; gap: 0.3rem; }
+  #desk:not([data-connected]) .deck > .loops { grid-area: 1 / 7 / 18 / 8; gap: 0.3rem; }
+  #desk:not([data-connected]) .deck > .beat-jump-pads { grid-area: 18 / 7 / 25 / 8; }
+  #desk:not([data-connected]) .deck > .hot-cues { grid-area: 25 / 7 / 35 / 8; gap: 0.3rem; }
+  #desk:not([data-connected]) .deck > .key-pads { grid-area: 35 / 7 / 42 / 8; gap: 0.3rem; }
+  #desk:not([data-connected]) .deck > .pad-fx { grid-area: 42 / 7 / 63 / 8; }
+  #desk:not([data-connected]) .deck .pad-fx-pads { grid-template-columns: repeat(4, 1fr); }
+  #desk:not([data-connected]) .deck .pad-fx-pads .pad { height: 1.75rem; padding-block: 0; font-size: 0.56rem; line-height: 1.1; }
+  #desk:not([data-connected]) > .mixer .eq { width: 4.4rem; }
+  #desk:not([data-connected]) > .sampler .sampler-slot { min-height: 2rem; }
+  #desk:not([data-connected]) .deck .pad { padding-block: 0.25rem; font-size: 0.62rem; }
+  #desk:not([data-connected]) .deck .loops button:not(.pad) { padding-inline: 0.4rem; font-size: 0.62rem; }
+}

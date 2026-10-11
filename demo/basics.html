@@ -1,0 +1,23 @@
+<!-- Concern: the basics page's markup: connect and the twin, for the shortest example of the library | Non-concern: behaviour (src/basics.ts), look (assets/styles/page.css) | IO: none -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="The shortest example of dj-controller: two songs played from a Pioneer DDJ-FLX10's PLAY, CUE, TEMPO, faders and crossfader." />
+    <title>dj-controller basics</title>
+    <link rel="stylesheet" href="./assets/styles/page.css" />
+    <script type="module">
+      import { startBasics } from './src/basics.ts'
+      await startBasics()
+    </script>
+  </head>
+  <body>
+    <header>
+      <button id="connect" type="button" disabled>Connect a DDJ-FLX10</button>
+    </header>
+    <p id="error" role="alert" hidden></p>
+    <dj-controller-twin hidden></dj-controller-twin>
+  </body>
+</html>

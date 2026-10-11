@@ -1,0 +1,1 @@
+Concern: prints a plugged-in controller's messages live, decoded by the core; builds the npm package | Non-concern: decoding, browser transports | IO: (rawmidi device) -> stdout; (checkout) -> package

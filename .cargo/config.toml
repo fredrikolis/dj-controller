@@ -1,0 +1,4 @@
+# Concern: the cfg flags every wasm32 build compiles with | Non-concern: native targets' flags | IO: none
+# web-sys gates WebHID and WebUSB, the driver's later transports, behind this cfg.
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg=web_sys_unstable_apis"]

@@ -1,0 +1,2 @@
+; Models: a brass stab on a D power chord, saws swelling through a lowpass that opens then falls | Neglects: breath noise | IO: (t) -> amplitude | Tags: stab
+crop(0.8*tanh(1.3*lowpass(sample(0.3*(saw(D4*6ct) + saw(D4/6ct) + saw(A4*6ct) + saw(A4/6ct) + 0.7*saw(D5))), cutoff=400 + 3800*(1 - exp(-t/0.03))*exp(-t/0.35), q=1.1))*(1 - exp(-t/0.015)), 0s, 0.7s, rise=0.003s, fall=0.18s)

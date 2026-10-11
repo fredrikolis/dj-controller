@@ -1,0 +1,2 @@
+; Models: one bar of offbeat bass eighths on D, the octave jumping | Neglects: a kick under it | IO: (t) -> amplitude | Tags: loop
+0.75*(0.7*(@voice-acid(t - 0.125b, f0=D2, len=0.1b, acc=0.3) + @voice-acid(t - 0.375b, f0=D3, len=0.1b, acc=0) + @voice-acid(t - 0.625b, f0=D2, len=0.1b, acc=0.3) + @voice-acid(t - 0.875b, f0=F2, len=0.1b, acc=0.6)) + @voice-sub(t - 0.125b, f0=D1, len=0.1b) + @voice-sub(t - 0.375b, f0=D1, len=0.1b) + @voice-sub(t - 0.625b, f0=D1, len=0.1b) + @voice-sub(t - 0.875b, f0=F1, len=0.1b))

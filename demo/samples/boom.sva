@@ -1,0 +1,3 @@
+; Models: an 808 bass drum on D1, a long saturated sine falling a fifth into its pitch | Neglects: the circuit's drift | IO: (t) -> amplitude | Tags: drum
+f0 = D1
+crop(0.95*tanh(1.8*(sin(2*pi*(f0*t + 0.5*f0*0.05*(1 - exp(-t/0.05))))*exp(-t/0.7) + 0.3*sin(2*pi*(3*f0*t))*exp(-t/0.02))), 0s, 1.4s, rise=0.0005s, fall=0.4s)

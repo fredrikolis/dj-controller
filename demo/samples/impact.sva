@@ -1,0 +1,2 @@
+; Models: an impact, a sub boom at 45 Hz with a burst of noise and a long dark tail | Neglects: the room | IO: (t) -> amplitude | Tags: fx
+crop(0.95*tanh(1.8*(sin(2*pi*(42*t + 90*0.08*(1 - exp(-t/0.08))))*exp(-t/0.9) + 0.6*lowpass(sample(rand(t, seed=131)), cutoff=200 + 5000*exp(-t/0.05), q=0.7)*(0.6*exp(-t/0.04) + 0.4*exp(-t/0.8)))), 0s, 3s, rise=0.0005s, fall=1.2s)

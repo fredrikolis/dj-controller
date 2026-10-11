@@ -1,0 +1,5 @@
+; Models: a rave chord stab, three detuned saw pairs and a sub octave through a lowpass closing fast | Neglects: the chord's voicing beyond three notes | IO: (t, f1, f2, f3) -> amplitude | Tags: stab
+f1 = D4
+f2 = F4
+f3 = A4
+crop(0.85*tanh(1.6*lowpass(sample(0.3*(saw(f1*9ct) + saw(f1/9ct) + saw(f2*9ct) + saw(f2/9ct) + saw(f3*9ct) + saw(f3/9ct)) + 0.35*saw(f1/2)), cutoff=500 + 6000*exp(-t/0.1), q=1.6))*(0.25 + 0.75*exp(-t/0.18)), 0s, 0.6s, rise=0.002s, fall=0.15s)

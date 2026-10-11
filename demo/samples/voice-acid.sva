@@ -1,0 +1,5 @@
+; Models: an acid bass note, a saw through a screaming resonant lowpass that snaps shut | Neglects: slides between notes | IO: (t, f0, len, acc) -> amplitude | Tags: bass
+f0 = D2
+len = 0.1
+acc = 0
+crop(0.5*tanh(2.2*lowpass(sample(saw(f0)), cutoff=180 + (1400 + 2200*acc)*exp(-t/(0.06 + 0.08*acc)), q=9)), 0s, len, rise=0.002s, fall=0.012s)

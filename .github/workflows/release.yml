@@ -1,0 +1,67 @@
+# Concern: the release: the npm package built once, tagged and published | Non-concern: per-commit checks (ci.yml) | IO: (dispatch) -> tag, npm package
+name: Release
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: gates
+          cache-bin: false
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: "v0.15.0"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: cargo test --workspace --locked
+
+  # Built once, then tagged: npm publishes the very directory the CLI built.
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write # trusted publishing's OIDC token; no npm token is stored
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+          targets: wasm32-unknown-unknown
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: "v0.15.0"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm >= 11.5.1.
+      - run: npm install -g npm@11.5.1 && npm --version
+      - id: package
+        run: |
+          set -euo pipefail
+          cargo run --locked --quiet -p dj-controller-cli -- package target/pkg
+          echo "version=$(node -p "require('./target/pkg/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Check the demo pins the version this release publishes
+        run: test "$(node -p "require('./demo/package.json').dependencies['dj-controller']")" = "${{ steps.package.outputs.version }}"
+      - run: |
+          git tag "v${{ steps.package.outputs.version }}"
+          git push origin "v${{ steps.package.outputs.version }}"
+      - name: Publish to npm
+        run: npm publish --access public --provenance ./target/pkg
