@@ -1,7 +1,7 @@
 // Concern: checks the key shift spec's T7: each pad painted as its pitch on both pages and SHIFT, PAGE LEDs, Keyboard's hot cues, the jog screen's key | Non-concern: the colours chosen | IO: none
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CUE_COLOUR } from '../../shared/hot-cues/lights.ts'
+import { cueColour } from '../../shared/hot-cues/lights.ts'
 import type { ModeViews, Output, Steady } from '../../shared/lights/show-lights.ts'
 import { NO_HOT_CUES } from '../../shared/transport/hot-cue-state.ts'
 import { NO_LOOP } from '../../shared/transport/loop-state.ts'
@@ -31,7 +31,7 @@ test('T7: Keyboard choosing lights the hot cues as HOT CUE mode does; chosen, th
   const deck = { loop: NO_LOOP, hotCues: NO_HOT_CUES.map((c, slot) => (slot === 0 ? ({ kind: 'cue', at: 0 } as const) : c)) }
   const first = views.pages[0]?.pads[0]
   assert.ok(first)
-  assert.equal(valueAt(keyboardPlan(views, deck, 0, true, 0).steady, first), CUE_COLOUR)
+  assert.equal(valueAt(keyboardPlan(views, deck, 0, true, 0).steady, first), cueColour(0))
   assert.equal(valueAt(keyboardPlan(views, deck, 0, false, 0).steady, first), pitchColour(pitchOf(0, 0), 0))
 })
 

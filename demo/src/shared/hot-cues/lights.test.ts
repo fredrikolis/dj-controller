@@ -6,7 +6,7 @@ import { showLights, type ModeViews, type Output } from '../lights/show-lights.t
 import { NO_HOT_CUES, type HotCue } from '../transport/hot-cue-state.ts'
 import { looping, NO_LOOP } from '../transport/loop-state.ts'
 import type { Cueing } from './hot-cue.ts'
-import { CUE_COLOUR, EMPTY_COLOUR, HOT_LOOP_BLINK, LOOP_COLOUR, padLightsOf, planOf } from './lights.ts'
+import { cueColour, EMPTY_COLOUR, HOT_LOOP_BLINK, LOOP_COLOUR, padLightsOf, planOf } from './lights.ts'
 
 type Call = { readonly name: string; readonly what: 'set' | 'play' | 'ended'; readonly value: unknown }
 
@@ -41,7 +41,7 @@ const hotLoop: HotCue = { kind: 'loop', in: 20000, out: 100000 }
 
 test('T10: an empty slot, a cue and a hot loop each show their colour; the called hot loop blinks', () => {
   const lights = padLightsOf(deck({ 0: { kind: 'cue', at: 0 }, 9: hotLoop }, looping(hotLoop)))
-  assert.deepEqual(lights.slice(0, 2), [{ colour: CUE_COLOUR, blink: false }, { colour: EMPTY_COLOUR, blink: false }])
+  assert.deepEqual(lights.slice(0, 2), [{ colour: cueColour(0), blink: false }, { colour: EMPTY_COLOUR, blink: false }])
   assert.deepEqual(lights[9], { colour: LOOP_COLOUR, blink: true })
   assert.equal(padLightsOf(deck({ 9: hotLoop }, looping({ in: 20000, out: 60000 })))[9]?.blink, false, 'halved, it no longer blinks')
 })
@@ -51,7 +51,7 @@ test('T10: page 2 is painted while page 1 shows, the SHIFT views equal the plain
   const life = new AbortController()
   await showLights(life.signal)(planOf(views(log), padLightsOf(deck({ 0: { kind: 'cue', at: 0 }, 15: hotLoop }, looping(hotLoop))), 0))
   const shown = (name: string) => log.find((c) => c.name === name)
-  assert.deepEqual([shown('0 0')?.value, shown('1 6')?.value, shown('1 7')], [CUE_COLOUR, EMPTY_COLOUR, { name: '1 7', what: 'play', value: { ...HOT_LOOP_BLINK, origin: 0 } }])
+  assert.deepEqual([shown('0 0')?.value, shown('1 6')?.value, shown('1 7')], [cueColour(0), EMPTY_COLOUR, { name: '1 7', what: 'play', value: { ...HOT_LOOP_BLINK, origin: 0 } }])
   for (let p = 0; p < 2; p++) for (let i = 0; i < 8; i++) assert.deepEqual({ ...shown(`${p} ${i} shift`), name: '' }, { ...shown(`${p} ${i}`), name: '' })
   assert.deepEqual(log.filter((c) => c.what === 'play').map((c) => c.name), ['1 7', '1 7 shift'])
   assert.deepEqual([shown('left')?.value, shown('right')?.value], [true, false])
@@ -66,7 +66,7 @@ test('setting a slot writes its colour at once; clearing the called hot loop wri
   await show(planOf(out, padLightsOf(deck({ 0: hotLoop }, looping(hotLoop))), null))
   log.length = 0
   await show(planOf(out, padLightsOf(deck({ 0: hotLoop, 1: { kind: 'cue', at: 0 } }, looping(hotLoop))), null))
-  assert.deepEqual(log, [{ name: '0 1', what: 'set', value: CUE_COLOUR }, { name: '0 1 shift', what: 'set', value: CUE_COLOUR }])
+  assert.deepEqual(log, [{ name: '0 1', what: 'set', value: cueColour(1) }, { name: '0 1 shift', what: 'set', value: cueColour(1) }])
   log.length = 0
   await show(planOf(out, padLightsOf(deck({ 1: { kind: 'cue', at: 0 } }, looping(hotLoop))), null))
   const pad = log.filter((c) => c.name.startsWith('0 0'))

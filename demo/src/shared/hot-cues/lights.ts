@@ -1,11 +1,28 @@
-// Concern: what a deck's hot cues light: each slot's pad colour from the model palette, the called hot loop's blink, PAGE LEDs, as a plan | Non-concern: writing it (shared/lights) | IO: (deck) -> plan
+// Concern: what a deck's hot cues light: each cue its own colour, a hot loop amber, the called blinking, PAGE LEDs, as a plan | Non-concern: writing it | IO: (deck) -> plan
 import type { Pattern } from 'dj-controller'
 import type { Blink, ModeViews, Plan, Steady } from '../lights/show-lights.ts'
 import { calledSlot, slotOf, type Cueing } from './hot-cue.ts'
 
-// RB p.234; unverified.
-export const CUE_COLOUR = 21
-export const LOOP_COLOUR = 37
+// RB p.234 [COLORFUL]; rgb: mixxxdj/mixxx 0cf6f5a; pad: the model palette's nearest hue, unverified. ASSUMPTION: I-P alike.
+export const COLORFUL = [
+  { rgb: '#FF127B', pad: 53 },
+  { rgb: '#50B4FF', pad: 13 },
+  { rgb: '#A5E116', pad: 25 },
+  { rgb: '#AA42FF', pad: 61 },
+  { rgb: '#10B176', pad: 17 },
+  { rgb: '#E0641B', pad: 37 },
+  { rgb: '#305AFF', pad: 5 },
+  { rgb: '#C3AF04', pad: 29 },
+] as const
+// RB p.234 [CDJ]; unverified.
+export const LOOP_COLOUR = 33
+
+export function cueColour(slot: number): number {
+  const colour = COLORFUL[slot % COLORFUL.length]
+  if (colour === undefined) throw new RangeError(`hot cue slot ${slot} has no colour: slots run from 0`)
+  return colour.pad
+}
+
 // MML p.7 *1; flx10-connect.md frames 106-282.
 export const EMPTY_COLOUR = 0
 // ASSUMPTION: the loops' blink.
@@ -15,10 +32,10 @@ export type PadLight = { readonly colour: number; readonly blink: boolean }
 
 export function padLightsOf(deck: Pick<Cueing, 'loop' | 'hotCues'>): readonly PadLight[] {
   const called = calledSlot(deck)
-  return deck.hotCues.map((cue, slot) => ({ colour: cue === null ? EMPTY_COLOUR : cue.kind === 'cue' ? CUE_COLOUR : LOOP_COLOUR, blink: slot === called }))
+  return deck.hotCues.map((cue, slot) => ({ colour: cue === null ? EMPTY_COLOUR : cue.kind === 'cue' ? cueColour(slot) : LOOP_COLOUR, blink: slot === called }))
 }
 
-// ASSUMPTION: SHIFT mirrors; PAGE lit as shown.
+// ASSUMPTION: SHIFT mirrors.
 export function planOf(views: ModeViews, lights: readonly PadLight[], page: number | null): Plan {
   const steady: Steady[] = []
   const blinks: Blink[] = []
