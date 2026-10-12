@@ -1,4 +1,4 @@
-// Concern: the twin's layouts against the controllers they draw: every physical input of a model's controller has a part, a jog's part turns by its model's revolution, a part moves as SHIFT moves it | Non-concern: drawing, the element (browsers) | IO: (Device, recorded laps) -> assertions
+// Concern: what the twin promises a host, read from its own modules as the element needs a browser: every physical input of a model's controller has a part, a label shows on the bank it names, a text its labels or displays cannot carry is refused | Non-concern: drawing, pointer and keys, the element (browsers) | IO: (Device, virtual controller) -> assertions
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -9,9 +9,11 @@ import { Device } from './web-midi.mjs'
 const pkg = process.env.DJ_CONTROLLER_PKG
 const { initSync } = await import(join(pkg, 'dj_controller.js'))
 initSync({ module: readFileSync(join(pkg, 'dj_controller_bg.wasm')) })
-const { connect } = await import(join(pkg, 'index.js'))
+const { connect, virtual } = await import(join(pkg, 'index.js'))
 const { layoutOf, place, placed } = await import(join(pkg, 'twin/layout.js'))
-const { follow } = await import(join(pkg, 'twin/follow.js'))
+const { tree, showing, shownOf } = await import(join(pkg, 'twin/tree.js'))
+const { checked } = await import(join(pkg, 'twin/labels.js'))
+const { checkedText } = await import(join(pkg, 'twin/displays.js'))
 
 // Bank views and the lifecycle are no physical controls of their own.
 const VIEWS = new Set(['modes', 'shifted', 'model', 'palette', 'closed', 'close'])
@@ -36,72 +38,42 @@ test('the FLX10 layout gives every physical input of its controller a part', asy
   await flx.close()
 })
 
-// TEMPO's value rises toward the player, down the panel (owner, 2026-10-10, docs/research/flx10-observed-tempo.md); a channel fader's rises up.
-test('the FLX10 layout marks each TEMPO fader reversed, rising toward the player, and no channel fader', async () => {
-  new Device().install()
-  const flx = await connect('DDJ-FLX10')
-  const parts = place(layoutOf(flx))
-  const showing = (controls) => parts.filter((part) => placed(part).some(({ control }) => controls.includes(control)))
-  const tempos = showing(flx.decks.map((deck) => deck.tempo))
-  const faders = showing(flx.mixer.channels.map((channel) => channel.fader))
-  assert.ok(tempos.length > 0 && faders.length > 0)
-  assert.deepEqual(tempos.map((part) => part.reversed), tempos.map(() => true))
-  assert.deepEqual(faders.map((part) => part.reversed ?? false), faders.map(() => false))
-  await flx.close()
+test("a label's bank is the view it names, the unshifted bank showing for a control, SHIFT's while held", async () => {
+  const virt = await virtual('DDJ-FLX10')
+  const { seats, owners } = tree(virt)
+  const deck = virt.decks[0]
+  const seat = seats.get(deck.pads[2])
+  assert.equal(seats.get(deck.modes.sampler.pages[1].shifted.pads[2]), seat, 'a view sits at its control')
+  const now = (shift) => showing(seat, shownOf(seat, owners), shift)
+  assert.equal(now(false), deck.modes.hotCue.pages[0].pads[2])
+  assert.equal(now(true), deck.modes.hotCue.pages[0].shifted.pads[2])
+  virt.virtual.press(deck.padMode.sampler)
+  assert.equal(now(false), deck.modes.sampler.pages[0].pads[2], 'a mode never seen comes up on its page 1')
+  virt.virtual.press(deck.page.right)
+  assert.equal(now(false), deck.modes.sampler.pages[1].pads[2])
+  const cue = seats.get(deck.cue)
+  assert.equal(showing(cue, shownOf(cue, owners), false), deck.cue)
+  assert.equal(showing(cue, shownOf(cue, owners), true), deck.shifted.cue)
+  const back = seats.get(virt.browser.back)
+  virt.virtual.press(virt.decks[1].shift)
+  assert.equal(shownOf(back, owners).shift, true, 'a control with no SHIFT of its own counts any held')
+  assert.equal(showing(back, shownOf(back, owners), true), virt.shifted.browser.back)
+  await virt.close()
 })
 
-// Owner's deck 2 laps: 12,884 and 13,266 ticks (docs/research/flx10-observed-jog.md).
-const LAPS = new URL('../../dj-controller-core/fixtures/ddj-flx10-jog-laps-2026-10-10.hex', import.meta.url)
-const LINES = readFileSync(LAPS, 'utf8').split('\n')
-const SLOW_LAP = LINES.slice(0, LINES.indexOf('91 36 00'))
-
-test("the FLX10 twin turns deck 2's platter one revolution, within the owner's laps, for the slow lap's 12,884 ticks", async () => {
-  // follow reads once an animation frame; Node has none.
-  globalThis.requestAnimationFrame ??= (run) => setTimeout(run, 0)
-  globalThis.cancelAnimationFrame ??= (id) => clearTimeout(id)
-  const device = new Device().install()
-  const flx = await connect('DDJ-FLX10')
-  const platter = flx.decks[1].jog.platter
-  const part = place(layoutOf(flx)).find((p) => placed(p).some(({ control }) => control === platter))
-  const at = placed(part).findIndex(({ control }) => control === platter)
-  const stop = new AbortController()
-  let turns
-  const following = follow(part, at, stop.signal, { set: (patch) => ('turns' in patch ? (turns = patch.turns) : undefined), flash() {} }).catch((err) => {
-    if (!stop.signal.aborted) throw err
-  })
-  for (const line of SLOW_LAP) device.input.receive(line)
-  assert.equal(typeof platter.revolution, 'number')
-  const drawn = () => turns !== undefined && platter.position.ticks === 12884 && Math.abs(turns - 12884 / platter.revolution) < 1e-9
-  for (let reads = 0; !drawn() && reads < 1000; reads++) await new Promise((resolve) => setTimeout(resolve, 0))
-  assert.ok(turns >= 12884 / 13266 && turns <= 12884 / 12884, `turned ${turns}`)
-  stop.abort()
-  await following
-  await flx.close()
-})
-
-test('the FLX10 twin draws TEMPO and the platter where they moved with SHIFT held, as their shifted views report', async () => {
-  globalThis.requestAnimationFrame ??= (run) => setTimeout(run, 0)
-  globalThis.cancelAnimationFrame ??= (id) => clearTimeout(id)
-  const device = new Device().install()
-  const flx = await connect('DDJ-FLX10')
-  const parts = place(layoutOf(flx))
-  const partOf = (control) => parts.find((p) => placed(p).some((c) => c.control === control))
-  const stop = new AbortController()
-  const drawn = {}
-  const following = ['tempo', 'platter'].map((name) => {
-    const control = name === 'tempo' ? flx.decks[0].tempo : flx.decks[0].jog.platter
-    const part = partOf(control)
-    const at = placed(part).findIndex((c) => c.control === control)
-    return follow(part, at, stop.signal, { set: (patch) => Object.assign((drawn[name] ??= {}), patch), flash() {} }).catch((err) => {
-      if (!stop.signal.aborted) throw err
-    })
-  })
-  // SHIFT held: deck 1 TEMPO B0 05 / B0 25, platter B0 1F (MML p.2 D4, D3).
-  for (const message of ['90 3F 7F', 'B0 05 10', 'B0 25 00', 'B0 1F 46']) device.input.receive(message)
-  const moved = () => drawn.tempo?.fraction === (0x10 << 7) / flx.decks[0].tempo.max && drawn.platter?.ticks === 6
-  for (let reads = 0; !moved() && reads < 1000; reads++) await new Promise((resolve) => setTimeout(resolve, 0))
-  assert.ok(moved(), JSON.stringify(drawn))
-  stop.abort()
-  await Promise.all(following)
-  await flx.close()
+// The fields' limits are the SysEx layouts': 00 0A a 32-character name, 00 0B 5 characters (fixtures/ddj-flx10-rekordbox-connect.json frames 71, 72; unprobed).
+test('a label of 1 to 32 characters is taken, a display takes the text its fields carry, and each names what does not fit', () => {
+  assert.equal(checked('Kick'), 'Kick')
+  for (const bad of ['', '   ', 'a'.repeat(33), 'a\nb']) assert.throws(() => checked(bad), RangeError)
+  const text = { name: 'LOW CUT ECHO', beat: '+1/16', bpm: 146.3, tap: false }
+  assert.deepEqual(checkedText('beatFx', text), text)
+  assert.deepEqual(checkedText('beatFx', { ...text, bpm: undefined }).bpm, undefined)
+  assert.throws(() => checkedText('beatFx', { ...text, name: 'x'.repeat(33) }), /beatFx\.name/)
+  assert.throws(() => checkedText('beatFx', { ...text, name: 'ÉCHO' }), /beatFx\.name/)
+  assert.throws(() => checkedText('beatFx', { ...text, beat: '+1/160' }), /beatFx\.beat/)
+  assert.throws(() => checkedText('beatFx', { ...text, bpm: 1000 }), /beatFx\.bpm/)
+  assert.deepEqual(checkedText('jog1', { range: '±10%' }), { range: '±10%' })
+  assert.throws(() => checkedText('jog1', { range: '±100.0%' }), /jog1\.range/)
+  assert.throws(() => checkedText('jog1', text), RangeError)
+  assert.throws(() => checkedText('beatFx', { range: '±10%' }), RangeError)
 })

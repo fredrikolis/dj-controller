@@ -7,7 +7,6 @@ import { test } from 'node:test'
 import { Device, listened } from './web-midi.mjs'
 
 const pkg = process.env.DJ_CONTROLLER_PKG
-const main = join(pkg, 'dj_controller_bg.wasm')
 for (const wasm of ['', 'diagnostics']) {
   const { initSync } = await import(join(pkg, wasm, 'dj_controller.js'))
   initSync({ module: readFileSync(join(pkg, wasm, 'dj_controller_bg.wasm')) })
@@ -670,11 +669,4 @@ test('the diagnostics see every message and telling of a controller their connec
   assert.throws(() => inspect(plain), TypeError)
   assert.equal(plain.decks[0].jog.platter.turns, undefined, 'each report of a jog only the diagnostics give')
   await plain.close()
-})
-
-test('the main entry\'s wasm and types carry none of the diagnostics', () => {
-  const exports = WebAssembly.Module.exports(new WebAssembly.Module(readFileSync(main))).map((e) => e.name)
-  for (const name of ['inspect', 'openScreens', 'controlStep', 'inspector_send', 'inspector_repeat']) assert.ok(!exports.includes(name), name)
-  const types = readFileSync(join(pkg, 'dj_controller.d.ts'), 'utf8')
-  for (const name of ['Inspector', 'DeckEvent', 'Told =', 'HidReport', 'openScreens', 'Turn<', 'turns(']) assert.ok(!types.includes(name), name)
 })

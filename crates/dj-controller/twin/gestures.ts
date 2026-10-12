@@ -19,7 +19,7 @@ export type Reach = {
 }
 
 /** How long a hold lasts before its `long-press` layer is pressed too: the unit's own threshold is unobserved; 1 s assumed. */
-export const LONG_PRESS_MS = 1000
+const LONG_PRESS_MS = 1000
 /** A knob's whole travel, and an encoder's one tick, in the layout's units of drag. */
 const KNOB_TRAVEL = 150
 const ENCODER_STEP = 10
