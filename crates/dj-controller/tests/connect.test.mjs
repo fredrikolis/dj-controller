@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
+import { testClock } from './clock.mjs'
 import { Device, listened } from './web-midi.mjs'
 
 const pkg = process.env.DJ_CONTROLLER_PKG
@@ -23,35 +24,23 @@ const PAGE_RIGHT_HOT_CUE = '90 2C'
 const PAGE_LEFT_HOT_CUE = '90 24'
 const SHIFT = '90 3F'
 
-// Every timer the driver sets and has not cleared or seen fire, so a test can tell none is left.
-const timers = new Set()
-const [setTimer, clearTimer] = [globalThis.setTimeout, globalThis.clearTimeout]
-globalThis.setTimeout = (f, ms, ...args) => {
-  const id = setTimer(() => {
-    timers.delete(id)
-    f(...args)
-  }, ms)
-  timers.add(id)
-  return id
-}
-globalThis.clearTimeout = (id) => {
-  timers.delete(id)
-  clearTimer(id)
-}
-
-// Steps outlast every test, so no assertion waits on the wall clock; the core times steps on a fake one.
+// A test's clock stands still once connected, so a lease stays at its first step; the core times steps on a fake one.
 const blink = (a, b) => ({ steps: [[a, 60000], [b, 60000]], repeat: true })
 
 const rejectsWith = (promise, code) => assert.rejects(promise, (e) => e.name === 'ControllerError' && e.code === code)
 
+/** A controller connected on a clock of its own, its connect's waits passed at once. */
 async function connected(options, entry = connect) {
   const device = new Device().install()
-  const flx = await entry('DDJ-FLX10', options)
-  return { device, flx }
+  const clock = testClock()
+  const flx = await clock.until(entry('DDJ-FLX10', { ...options, clock }))
+  return { device, flx, clock }
 }
 
+// The one connect on the page's clock, the default: its waits are real.
 test('connect resolves with the state reply already in, every output told its rest state', async () => {
-  const { device, flx } = await connected()
+  const device = new Device().install()
+  const flx = await connect('DDJ-FLX10')
   // The recorded reply's first pair: deck 1 TEMPO, B0 00 43 / B0 20 6D.
   assert.equal(flx.decks[0].tempo.read().raw, (0x43 << 7) | 0x6d)
   assert.equal(flx.decks[0].tempo.max, 16383)
@@ -452,7 +441,7 @@ test('writes reject: out of range, a bank the device has not told, when the port
 })
 
 test('a lease shows its first step once play resolves; the newest shows, a write under it sets the base, and disposing reveals the older then the base', async () => {
-  const { device, flx } = await connected()
+  const { device, flx, clock } = await connected()
   const pad = flx.decks[0].pads[0]
   await pad.colour(5)
   const older = await pad.play(blink(1, 2))
@@ -473,7 +462,7 @@ test('a lease shows its first step once play resolves; the newest shows, a write
   assert.equal(device.output.sent.at(-1), `${PAD1_HOT_CUE.deck1} 07`, 'the base the write set')
   assert.equal(pad.told, 7)
   await new Promise(setImmediate)
-  assert.equal(timers.size, 0, 'no lease left a timer')
+  assert.equal(clock.waiting, 0, 'no lease left a wait on the clock')
   await flx.close()
 })
 
@@ -495,10 +484,10 @@ test('an output\'s base is what shows once no lease holds it, read and streamed 
 })
 
 test('a repeating pattern with an origin starts at the step it shows had it run since then; one run once with an origin is refused', async () => {
-  const { device, flx } = await connected()
+  const { device, flx, clock } = await connected()
   const [deck] = flx.decks
-  // Steps of a billion ms (11 days): an origin one step and a second back stays in the second step for the whole run.
-  const origin = performance.now() - 1e9 - 1000
+  // Steps of a billion ms (11 days): an origin one step and a second back is in the second step.
+  const origin = clock.now() - 1e9 - 1000
   const day11 = (a, b) => ({ steps: [[a, 1e9], [b, 1e9]], repeat: true, origin })
   await deck.playPause.play(day11(true, false))
   assert.equal(device.output.sent.at(-1), `${PLAY.deck1} 00`)
@@ -511,8 +500,8 @@ test('a repeating pattern with an origin starts at the step it shows had it run 
   await flx.close()
 })
 
-test('a lease ends when its signal aborts or the controller closes, leaving no listener or timer', async () => {
-  const { device, flx } = await connected()
+test('a lease ends when its signal aborts or the controller closes, leaving no listener or wait', async () => {
+  const { device, flx, clock } = await connected()
   const play = flx.decks[0].playPause
   const stop = new AbortController()
   listened(stop.signal)
@@ -539,7 +528,7 @@ test('a lease ends when its signal aborts or the controller closes, leaving no l
   assert.equal(device.output.sent.length, sent, 'a close reveals nothing')
   await new Promise(setImmediate)
   assert.equal(life.signal.listening('abort'), 0)
-  assert.equal(timers.size, 0)
+  assert.equal(clock.waiting, 0)
   await rejectsWith(play.play(blink(true, false)), 'closed')
 })
 
@@ -570,7 +559,7 @@ test('a number is written whole and in range or refused, never wrapped or cut; a
 })
 
 test('unplugging ends every stream, rejects pending waits, settles closed and drops the listeners', async () => {
-  const { device, flx } = await connected()
+  const { device, flx, clock } = await connected()
   const presses = flx.decks[0].playPause.presses()
   const next = flx.decks[0].cue.nextPress()
   const ended = (async () => {
@@ -578,7 +567,8 @@ test('unplugging ends every stream, rejects pending waits, settles closed and dr
     for await (const press of presses) seen.push(press)
     return seen
   })()
-  device.input.receive(`${PLAY.deck1} 7F`)
+  // Stamped on the controller's clock, as Web MIDI stamps on the page's.
+  device.input.receive(`${PLAY.deck1} 7F`, clock.now())
   device.unplug()
   const [held] = await ended
   assert.ok((await held.released) >= held.time, 'a press held at the close is released then, on the same clock')
@@ -601,14 +591,15 @@ test('a close takes every listener connect added off the MIDI access and off the
 
 test('connect waits for the device to be plugged in, and again after an unplug', async () => {
   const device = new Device({ plugged: false }).install()
-  const connecting = connect('DDJ-FLX10')
+  const clock = testClock()
+  const connecting = connect('DDJ-FLX10', { clock })
   setTimeout(() => device.plug(), 0)
-  const flx = await connecting
+  const flx = await clock.until(connecting)
   device.unplug()
   assert.equal(await flx.closed, 'unplugged')
-  const again = connect('DDJ-FLX10')
+  const again = connect('DDJ-FLX10', { clock })
   setTimeout(() => device.plug(), 0)
-  const replugged = await again
+  const replugged = await clock.until(again)
   assert.notEqual(replugged, flx)
   assert.ok(replugged.decks[0].tempo.read() !== undefined)
   await replugged.close()
@@ -622,8 +613,10 @@ test('connect rejects typed: permission refused, a port held elsewhere, no state
   await rejectsWith(connect('DDJ-FLX10'), 'busy')
   const mute = new Device().install()
   mute.answers = false
-  await rejectsWith(connect('DDJ-FLX10'), 'timeout')
+  const clock = testClock()
+  await rejectsWith(clock.until(connect('DDJ-FLX10', { clock })), 'timeout')
   assert.equal(mute.input.connection, 'closed')
+  await assert.rejects(connect('DDJ-FLX10', { clock: { now: () => 0 } }), TypeError, 'a clock with no sleep')
 })
 
 test('an abort cancels a stream, a wait, a pending connect, and a connected controller', async () => {

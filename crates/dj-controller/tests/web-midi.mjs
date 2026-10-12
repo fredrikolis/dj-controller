@@ -74,7 +74,7 @@ export class Device {
   access = listened(Object.assign(new EventTarget(), { inputs: new Map(), outputs: new Map(), sysexEnabled: true }))
   answers = true
   constructor({ plugged = true } = {}) {
-    this.output.onsend = (text) => text === STATE_REQUEST && this.answers && setTimeout(() => this.reply(), 0)
+    this.output.onsend = (text) => text === STATE_REQUEST && this.answers && queueMicrotask(() => this.reply())
     if (plugged) this.plug()
   }
   reply() {

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
+import { testClock } from './clock.mjs'
 import { Device } from './web-midi.mjs'
 
 const pkg = process.env.DJ_CONTROLLER_PKG
@@ -14,7 +15,8 @@ const { connect, virtual } = await import(join(pkg, 'index.js'))
 /** A virtual FLX10 beside one connected to the stand-in device. */
 async function both() {
   const device = new Device().install()
-  const real = await connect('DDJ-FLX10')
+  const clock = testClock()
+  const real = await clock.until(connect('DDJ-FLX10', { clock }))
   const virt = await virtual('DDJ-FLX10')
   const close = () => Promise.all([real.close(), virt.close()])
   return { device, real, virt, hands: virt.virtual, close }

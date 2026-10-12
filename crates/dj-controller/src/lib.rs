@@ -43,8 +43,19 @@ export interface Feed<T> extends AsyncIterable<T> {
   readonly dropped: number;
 }
 
-/** Its `signal` cancels the connect, and once connected closes the controller when it aborts. */
-export type ConnectOptions = { readonly signal?: AbortSignal };
+/**
+ * The controller's clock: `now` its time in ms, `sleep` a promise resolving once `ms` have passed on
+ * it, rejecting with `signal`'s reason and holding no timer once `signal` aborts. A connected
+ * controller's `now` is in `performance.now()`'s ms, as Web MIDI stamps its events and takes its timed sends.
+ */
+export type Clock = { now(): Time; sleep(ms: number, signal: AbortSignal): Promise<void> };
+
+/**
+ * Its `signal` cancels the connect, and once connected closes the controller when it aborts. Every
+ * wait of the controller, the connect's and each lease step's, runs on its `clock`: the page's
+ * (`performance.now()`, `setTimeout`) by default, a test's own to pass time without waiting.
+ */
+export type ConnectOptions = { readonly signal?: AbortSignal; readonly clock?: Clock };
 
 /** The model's `Colour`: what colour `numbers`, lowest to highest, show, as a source measured it. */
 export type PaletteColour = { readonly numbers: readonly [number, number]; readonly name: string; readonly rgb?: string; readonly hue?: number; readonly source: string; readonly verified: boolean };
@@ -245,7 +256,7 @@ export type Output = { control: string; layer?: string } & (
 /** The core's `Turn<I>`: one report of a relative control, `ticks` signed, as the device counts them. */
 export type Turn<Id> = Id & { readonly ticks: number };
 
-/** One telling of an output: `seq` orders tellings, `at` is `performance.now()` when sent or scheduled, `via` which way. What the device was told, not what it shows. */
+/** One telling of an output: `seq` orders tellings, `at` is the time on the controller's clock when sent or scheduled, `via` which way. What the device was told, not what it shows. */
 export type Told = Output & { layer: string; seq: number; at: number; via: "show" | "send" | "sync" | "lease" };
 
 export type SyncReport = { outputs: number; gapMs: number; spanMs: number };

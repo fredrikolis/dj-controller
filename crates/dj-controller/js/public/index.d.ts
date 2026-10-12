@@ -6,6 +6,7 @@ export type * from './dj_controller.js'
 export type {
   Absolute,
   Button,
+  Clock,
   CloseReason,
   ColourOut,
   ColourPad,

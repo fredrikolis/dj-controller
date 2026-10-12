@@ -2,7 +2,6 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::task::{Context, Poll};
 
 use dj_controller_core::error::{CloseReason, Error};
 use dj_controller_core::model::Model;
@@ -17,11 +16,12 @@ use web_sys::{
 };
 
 use crate::glue::{PaletteView, error, method, to_js};
-use crate::js::{abortable, either, name, navigator, next_event, now, sleep, text};
+use crate::js::{Clock, abortable, clock_of, either, name, navigator, next_event, text};
 
 /// A session's link over a Web MIDI output.
 struct WebLink {
     output: MidiOutput,
+    clock: Clock,
 }
 
 impl Link for WebLink {
@@ -35,38 +35,11 @@ impl Link for WebLink {
     }
 
     fn now(&self) -> f64 {
-        now()
+        self.clock.now()
     }
 
     fn sleep(&self, ms: f64) -> Pin<Box<dyn Future<Output = ()>>> {
-        timer(ms)
-    }
-}
-
-/// A link's sleep on the page's timers.
-pub fn timer(ms: f64) -> Pin<Box<dyn Future<Output = ()>>> {
-    let cancel = AbortController::new().unwrap_throw();
-    Box::pin(Sleep { wait: JsFuture::from(sleep(ms, &cancel.signal())), cancel })
-}
-
-/// A timer that, dropped before it fires, clears itself, so a lost race leaves no timer behind.
-struct Sleep {
-    wait: JsFuture,
-    cancel: AbortController,
-}
-
-impl Future for Sleep {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        // Only its own drop rejects it, and then nothing polls it.
-        Pin::new(&mut self.wait).poll(cx).map(|fired| fired.map(drop).unwrap_throw())
-    }
-}
-
-impl Drop for Sleep {
-    fn drop(&mut self) {
-        self.cancel.abort();
+        self.clock.timer(ms)
     }
 }
 
@@ -114,7 +87,7 @@ impl Ports {
 
 /// Asks for MIDI access with sysex, waits for `model`'s ports, opens them, tells every output its
 /// rest state and resolves once the device has answered its state request; `options.signal`
-/// cancels it, and once connected closes the controller.
+/// cancels it, and once connected closes the controller; its waits run on `options.clock`.
 #[wasm_bindgen(js_name = connect, skip_typescript)]
 pub async fn connect(model: String, options: JsValue) -> Result<JsValue, JsValue> {
     let model =
@@ -124,6 +97,7 @@ pub async fn connect(model: String, options: JsValue) -> Result<JsValue, JsValue
     } else {
         js_sys::Reflect::get(&options, &"signal".into())?.dyn_into().ok()
     };
+    let clock = clock_of(&options)?;
     let life = AbortController::new()?;
     let wait = either(&life.signal(), signal.clone());
     let navigator = navigator();
@@ -153,7 +127,7 @@ pub async fn connect(model: String, options: JsValue) -> Result<JsValue, JsValue
             error(if name(&e) == "InvalidAccessError" { Error::Busy(why) } else { Error::Gone(why) })
         })?;
     }
-    let session = Session::new(model, WebLink { output: output.clone() });
+    let session = Session::new(model, WebLink { output: output.clone(), clock });
     let ports = Rc::new(listen(&session, access, input, output, signal.clone()));
     let lifetime = (session.clone(), ports.clone());
     spawn_local(async move {

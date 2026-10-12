@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
+import { testClock } from './clock.mjs'
 import { Device } from './web-midi.mjs'
 
 const pkg = process.env.DJ_CONTROLLER_PKG
@@ -31,7 +32,8 @@ function inputs(node, at = 'controller') {
 
 test('the FLX10 layout gives every physical input of its controller a part', async () => {
   new Device().install()
-  const flx = await connect('DDJ-FLX10')
+  const clock = testClock()
+  const flx = await clock.until(connect('DDJ-FLX10', { clock }))
   const shown = new Set(place(layoutOf(flx)).flatMap((part) => placed(part).map(({ control }) => control)))
   const missing = inputs(flx).filter(([, control]) => !shown.has(control)).map(([at]) => at)
   assert.deepEqual(missing, [])

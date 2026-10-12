@@ -14,12 +14,13 @@ use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use wasm_bindgen_futures::{future_to_promise, spawn_local};
 use web_sys::{AbortSignal, AddEventListenerOptions};
 
-use crate::connect::timer;
 use crate::glue::{PaletteView, error, method, to_js};
-use crate::js::now;
+use crate::js::{Clock, clock_of};
 
 /// A link nothing listens on: every send succeeds and goes nowhere.
-struct NoDevice;
+struct NoDevice {
+    clock: Clock,
+}
 
 impl Link for NoDevice {
     fn send(&self, _: &[u8], _: Option<f64>) -> Result<(), String> {
@@ -27,11 +28,11 @@ impl Link for NoDevice {
     }
 
     fn now(&self) -> f64 {
-        now()
+        self.clock.now()
     }
 
     fn sleep(&self, ms: f64) -> Pin<Box<dyn Future<Output = ()>>> {
-        timer(ms)
+        self.clock.timer(ms)
     }
 }
 
@@ -66,7 +67,7 @@ pub fn virtual_controller(model: String, options: JsValue) -> Result<JsValue, Js
     if let Some(signal) = signal.as_ref().filter(|s| s.aborted()) {
         return Err(signal.reason());
     }
-    let session = Session::new(model, NoDevice);
+    let session = Session::new(model, NoDevice { clock: clock_of(&options)? });
     let unit = VirtualUnit::new(&session).map_err(error)?;
     unit.start().map_err(error)?;
     if let Some(signal) = signal {
