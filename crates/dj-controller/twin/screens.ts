@@ -1,6 +1,6 @@
 // Concern: draws a jog's screen and a text display and writes what each shows: told outputs, a host's text | Non-concern: where values come from (follow.ts) | IO: (svg, part) -> nodes; (values) -> text
 import type { BeatFxText, JogText } from '../index.js'
-import { fit } from './labels.js'
+import { broken, fit } from './labels.js'
 import type { Part } from './types.js'
 
 const SVG = 'http://www.w3.org/2000/svg'
@@ -94,14 +94,21 @@ export function drawDisplay(g: SVGGElement, part: Part): ScreenNodes {
   const { x, y } = part
   const h = typeof part.size === 'number' ? part.size * 2 : part.size[1]
   const row = (n: number) => y - h / 2 + (h / 4) * (n + 0.5)
-  return { name: text(g, 'name', x, row(0), 12), beat: text(g, 'beat', x, row(1) + 2, 22, 'big'), bpm: text(g, 'bpm', x, row(2) + 4, 12), channel: text(g, 'channel', x, row(3) + 2, 12, 'dim') }
+  return { name: text(g, 'name', x, row(0), 12), name2: text(g, 'name2', x, row(0), 12), beat: text(g, 'beat', x, row(1) + 2, 22, 'big'), bpm: text(g, 'bpm', x, row(2) + 4, 12), channel: text(g, 'channel', x, row(3) + 2, 12, 'dim') }
 }
 
 export function paintDisplay(part: Part, nodes: ScreenNodes, channel: string | undefined, host: BeatFxText | undefined): void {
   const w = typeof part.size === 'number' ? part.size * 2 : part.size[0]
-  const name = host === undefined || host.name === '' ? undefined : fit(host.name, w * 0.94, 1, 12, 8)
-  nodes.name.textContent = name?.lines[0] ?? ''
-  if (name) nodes.name.setAttribute('font-size', String(name.size))
+  const h = typeof part.size === 'number' ? part.size * 2 : part.size[1]
+  // Two lines at the smallest size hold the 32 characters the field carries.
+  const whole = Math.floor((w * 0.94) / (0.6 * 8))
+  const name = host === undefined || host.name === '' ? undefined : fit(broken(host.name, whole), w * 0.94, 2, 12, 8)
+  ;[nodes.name, nodes.name2].forEach((node, n) => {
+    node.textContent = name?.lines[n] ?? ''
+    if (!name) return
+    node.setAttribute('font-size', String(name.size))
+    node.setAttribute('y', String(part.y - h / 2 + h / 8 + (n - (name.lines.length - 1) / 2) * name.size * 1.1))
+  })
   nodes.beat.textContent = host?.beat ?? ''
   nodes.bpm.textContent = host === undefined ? '' : `${host.tap ? 'TAP' : 'AUTO'} ${host.bpm === undefined ? '---.-' : host.bpm.toFixed(1)}`
   nodes.channel.textContent = channel ?? ''

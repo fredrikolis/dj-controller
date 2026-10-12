@@ -4,8 +4,8 @@ import type { Part } from './types.js'
 
 const SVG = 'http://www.w3.org/2000/svg'
 
-/** `text`: a button's printed label, where a host's label goes; `lines`: a pad's two; `shown`: a screen's or display's fields. */
-export type View = { g: SVGGElement; body?: SVGElement; halo?: SVGElement; cap?: SVGElement; pointer?: SVGElement; arc?: SVGElement; mark?: SVGElement; level?: SVGElement; text?: SVGElement; lines?: readonly SVGElement[]; shown?: ScreenNodes }
+/** `text`: a button's printed label, where a host's label goes; `lines`: a pad's two; `above`: a knob's, fader's or selector's legend, a host's label in its place; `shown`: a screen's or display's fields. */
+export type View = { g: SVGGElement; above?: readonly SVGElement[]; body?: SVGElement; halo?: SVGElement; cap?: SVGElement; pointer?: SVGElement; arc?: SVGElement; mark?: SVGElement; level?: SVGElement; text?: SVGElement; lines?: readonly SVGElement[]; shown?: ScreenNodes }
 
 export function el<K extends keyof SVGElementTagNameMap>(parent: Element | null, name: K, attrs: Record<string, string | number> = {}): SVGElementTagNameMap[K] {
   const node = document.createElementNS(SVG, name)
@@ -40,11 +40,21 @@ export function insideSize(part: Part, length: number): number {
   return Math.max(5, Math.min(h * 0.5, 12, (w * 0.85) / (0.6 * Math.max(1, length))))
 }
 
+/** The shapes whose legend, or a host's label, goes above them. */
+export const turned = (part: Part): boolean => part.shape === 'knob' || part.shape === 'fader' || part.shape === 'selector' || part.shape === 'encoder'
+
+export function aboveY(part: Part): number {
+  const [w, h] = dims(part.size)
+  // An upright fader's cap rides 6 past its slot's top.
+  const cap = part.shape === 'fader' && h > w ? 6 : 0
+  const top = part.shape === 'selector' ? Math.min(...part.positions.map((p) => p.at[1])) + part.y - part.at[1] - 4 : part.y - h / 2
+  return top - cap - (part.shape === 'position' ? 3 : 5)
+}
+
 function label(g: SVGGElement, part: Part): SVGElement | undefined {
-  if (!inside(part) && !part.label) return undefined
-  const [, h] = dims(part.size)
+  if (turned(part) || (!inside(part) && !part.label)) return undefined
   const size = inside(part) ? insideSize(part, part.label?.length ?? 1) : 9
-  const y = inside(part) ? part.y : part.y - h / 2 - (part.shape === 'position' ? 3 : 5)
+  const y = inside(part) ? part.y : aboveY(part)
   const text = el(g, 'text', { x: part.x, y, 'font-size': size, class: inside(part) ? 'inside' : 'above' })
   text.textContent = part.label ?? ''
   return text
@@ -90,5 +100,6 @@ export function draw(svg: SVGSVGElement, part: Part): View {
     if (part.shape === 'position' && typeof part.size === 'number') el(g, 'circle', { class: 'reach', cx: x, cy: y, r: part.size + 1.5 })
   }
   view.text = label(g, part)
+  if (turned(part)) view.above = [el(g, 'text', { x, class: 'above' }), el(g, 'text', { x, class: 'above' })]
   return view
 }

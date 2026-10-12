@@ -117,6 +117,11 @@ export type DdjFlx10Displays = { readonly beatFx: BeatFxText; readonly jog1: Jog
 /** Every display `<dj-controller-twin>` shows a host's text on, by id. */
 export type TwinDisplays = DdjFlx10Displays;
 
+/** A selector's positions as its controller groups them: `effect.beatFxSelect`, `effect.beatFxChSelect`. */
+export type TwinSelector = { readonly [position: string]: Switch | readonly Switch[] };
+/** What a host can label on the twin: a button, a pad, a knob or fader, an encoder or jog, a selector. */
+export type TwinLabelled = Button<unknown> | Pad<unknown> | Absolute | Relative<unknown> | TwinSelector;
+
 /**
  * What a host gives `<dj-controller-twin>` to show, as data: the element's own properties.
  *
@@ -135,20 +140,25 @@ export interface TwinHost {
   /** Settles once it stops following: disconnected, given another controller, the controller closed, or a stream failed, logged and dispatched as an `error` ErrorEvent. */
   readonly running: Promise<void>;
   /**
-   * The labels a host shows on buttons and pads, in place, by control, declared whole: assign a
-   * new map to change any. A text is 1 to 32 characters, none a control character. A key is a bank
-   * view (`decks[0].modes.sampler.pages[1].pads[3]`, `decks[0].shifted.cue`), labelling the bank it
-   * is, shown only while the device shows that pad mode and page, or a control with no bank per
-   * pad mode (`decks[0].cue`); a SHIFT bank's label shows while SHIFT is held, the unshifted one
-   * where it has none. A label is plain state, as a colour's base: it takes no lease. The map
-   * outlives a controller: a key that is no control of the one drawn labels nothing. A pad draws
-   * its label in up to two lines, words kept whole, at the largest size that fits; past the
-   * smallest, a line is cut and ends in an ellipsis. A button draws it on one line in place of its
-   * printed name. Assigning throws a RangeError, nothing changed, for a text it does not take or a
-   * pad with a bank per pad mode and page, which names no one bank.
+   * The labels a host shows on controls, in place, by control, declared whole: assign a new map to
+   * change any. A text is 1 to 32 characters, none a control character. A key is a bank view
+   * (`decks[0].modes.sampler.pages[1].pads[3]`, `decks[0].shifted.cue`), labelling the bank it is,
+   * shown only while the device shows that pad mode and page, or a control with no bank per pad
+   * mode (`decks[0].cue`, `mixer.channels[2].eq.hi`, `mixer.crossfader`, `decks[0].tempo`), or a
+   * selector's group of positions (`effect.beatFxSelect`); a SHIFT bank's label shows while SHIFT
+   * is held, the unshifted one where it has none. A label is plain state, as a colour's base: it
+   * takes no lease. The map outlives a controller: a key that is no control of the one drawn
+   * labels nothing. A pad draws its label in up to two lines, words kept whole, at the largest
+   * size that fits; past the smallest, a line is cut and ends in an ellipsis. A button draws it on
+   * one line in place of its printed name. A knob, fader or encoder draws it above itself in place
+   * of its printed legend, in up to two lines clear of its neighbours (12 characters a line at the
+   * smallest size, a longer word broken), a selector in one line; a labelled one is drawn in the accent
+   * colour (`--dj-twin-lit`), so the controls a host assigns stand out from the rest. Assigning
+   * throws a RangeError, nothing changed, for a text it does not take or a pad with a bank per pad
+   * mode and page, which names no one bank.
    */
-  labels: ReadonlyMap<Button<unknown> | Pad<unknown>, string>;
-  /** The text a host shows on displays, by id, declared whole: assign a new object to change any; a display left out shows none. Assigning throws a RangeError naming the field that does not fit what its display carries, nothing changed. */
+  labels: ReadonlyMap<TwinLabelled, string>;
+  /** The text a host shows on displays, by id, declared whole: assign a new object to change any; a display left out shows none. The Beat FX display draws its name in up to two lines, all 32 characters it carries. Assigning throws a RangeError naming the field that does not fit what its display carries, nothing changed. */
   texts: { readonly [D in keyof TwinDisplays]?: TwinDisplays[D] };
 }
 

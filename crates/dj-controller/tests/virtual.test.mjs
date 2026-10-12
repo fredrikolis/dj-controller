@@ -280,6 +280,8 @@ test('a label keeps its words whole on its lines, shrinks before it cuts, and cu
   const cut = fit('Supercalifragilistic', 60, 2, 20, 10)
   assert.equal(cut.size, 10)
   assert.ok(fits(cut, 60) && cut.lines[0].endsWith('…') && 'Supercalifragilistic'.startsWith(cut.lines[0].slice(0, -1)))
+  const long = fit('A'.repeat(16) + ' ' + 'B'.repeat(16), 80, 2, 12, 8)
+  assert.deepEqual(long.lines.map((line) => line.length), [16, 16], 'two lines hold a display name\'s 32 characters')
   assert.equal(checked('Kick'), 'Kick')
   for (const bad of ['', '   ', 'a'.repeat(33), 'a\nb']) assert.throws(() => checked(bad), RangeError)
 })

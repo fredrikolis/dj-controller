@@ -1,7 +1,7 @@
 // Concern: <dj-controller-twin>: a controller's panel from its layout, following each control's stream while it lives, a held part lit | Non-concern: drawing, following | IO: (controller) -> SVG
 import { draw, el, type View } from './draw.js'
 import { follow, initial, type State } from './follow.js'
-import type { Button, Pad, TwinDisplays, VirtualGestures } from '../index.js'
+import type { Button, TwinDisplays, TwinLabelled, VirtualGestures } from '../index.js'
 import { checkedText } from './displays.js'
 import { hands, type Point } from './gestures.js'
 import { checked } from './labels.js'
@@ -22,7 +22,7 @@ export class Twin extends HTMLElement {
   static observedAttributes = ['layout']
   #controller: Twinned | null = null
   #tree: Tree = { seats: new Map(), owners: [] }
-  #given: ReadonlyMap<Button<unknown> | Pad<unknown>, string> = new Map()
+  #given: ReadonlyMap<TwinLabelled, string> = new Map()
   /** `#given` by any handle: a bank view, or a control whose plain layer is no pad mode's bank. */
   #labels: ReadonlyMap<object, string> = new Map()
   #texts: Texts = {}
@@ -44,22 +44,34 @@ export class Twin extends HTMLElement {
   set controller(controller: Twinned | null) {
     this.#controller = controller
     this.#tree = controller ? tree(controller) : { seats: new Map(), owners: [] }
+    this.#index()
     this.#start()
   }
 
-  get labels(): ReadonlyMap<Button<unknown> | Pad<unknown>, string> {
+  get labels(): ReadonlyMap<TwinLabelled, string> {
     return this.#given
   }
 
-  set labels(labels: ReadonlyMap<Button<unknown> | Pad<unknown>, string>) {
+  set labels(labels: ReadonlyMap<TwinLabelled, string>) {
     for (const [control, text] of labels) {
       checked(text)
       const seat = this.#tree.seats.get(control)
       if (seat?.banked && seat.control === control) throw new RangeError('a pad with a bank for each pad mode and page names no one bank: label its bank views')
     }
     this.#given = new Map(labels)
-    this.#labels = new Map<object, string>(labels)
+    this.#index()
     this.#repaint()
+  }
+
+  /** `#given` by handle on the controller drawn: a key its tree seats is a control; any other is a selector's group, each position in it standing for it. */
+  #index(): void {
+    const { seats } = this.#tree
+    const byHandle = new Map<object, string>(this.#given)
+    for (const [key, text] of this.#given) {
+      if (seats.has(key)) continue
+      for (const position of Object.values(key).flat()) if (typeof position === 'object' && position !== null && seats.has(position)) byHandle.set(position, text)
+    }
+    this.#labels = byHandle
   }
 
   get texts(): Texts {
@@ -77,7 +89,8 @@ export class Twin extends HTMLElement {
   #told(part: Part, at: number): Told {
     if (part.shape === 'display') return { beatFx: this.#texts[part.id] }
     if (part.shape === 'jog') return { jog: this.#texts[part.screens[at].id] }
-    const seat: Seat | undefined = part.shape === 'passive' || part.shape === 'selector' ? undefined : this.#tree.seats.get(part.controls[at].control)
+    if (part.shape === 'selector') return { label: part.positions.map((p) => this.#labels.get(p.on)).find((text) => text !== undefined) }
+    const seat: Seat | undefined = part.shape === 'passive' ? undefined : this.#tree.seats.get(part.controls[at].control)
     if (!seat) return {}
     const shown = shownOf(seat, this.#tree.owners)
     const bank = (shift: boolean) => showing(seat, shown, shift)

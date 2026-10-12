@@ -20,6 +20,9 @@ ${Object.entries(tokens).map(([name, value]) => `    --${name}: var(--dj-twin-${
   .part .passive { fill: none; stroke-dasharray: 3 3; opacity: 0.6; }
   .part text { fill: var(--ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
   .part text.above { opacity: 0.75; }
+  .part.labelled text.above { opacity: 1; fill: var(--lit); font-weight: 700; stroke: var(--page); stroke-width: 3; paint-order: stroke; stroke-linejoin: round; }
+  .part.labelled.knob .body, .part.labelled.selector .body, .part.labelled.encoder .body { stroke: var(--lit); stroke-width: 2.5; }
+  .part.labelled.fader .cap { fill: var(--lit); }
   .part .halo { fill: none; stroke: var(--down); stroke-width: 4; opacity: 0; pointer-events: none; }
   .part .halo.shift { stroke: var(--shift); }
   .part .slot { fill: var(--line); stroke: none; }

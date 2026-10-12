@@ -1,7 +1,7 @@
 // Concern: moves a part's drawn nodes to show the state of the control it shows now | Non-concern: drawing them (draw.ts), where the state comes from | IO: (Part, View, State) -> SVG attributes
-import { capAt, dims, inside, insideSize, type View } from './draw.js'
+import { aboveY, capAt, dims, inside, insideSize, type View } from './draw.js'
 import type { BeatFxText, JogText } from '../index.js'
-import { fit } from './labels.js'
+import { broken, fit } from './labels.js'
 import { paintDisplay, paintJog } from './screens.js'
 import type { State } from './follow.js'
 import type { Part } from './types.js'
@@ -35,11 +35,26 @@ function padLabel(part: Part, lines: readonly SVGElement[], label: string | unde
   })
 }
 
+const LEGEND = 9
+// A channel's meter stands 31 left of its knobs: a label keeps clear of it either side.
+const ABOVE = { width: 62, max: 11, min: 8 }
+
+/** A legend, or a host's label in its place: up to two lines stacked up from the part, one over a selector. */
+function aboveLabel(part: Part, lines: readonly SVGElement[], label: string | undefined): void {
+  const fitted = label === undefined ? { size: LEGEND, lines: part.label ? [part.label] : [] } : fit(broken(label, Math.floor(ABOVE.width / (0.6 * ABOVE.min))), ABOVE.width, part.shape === 'selector' ? 1 : lines.length, ABOVE.max, ABOVE.min)
+  lines.forEach((line, n) => {
+    line.textContent = fitted.lines[n] ?? ''
+    line.setAttribute('font-size', String(fitted.size))
+    line.setAttribute('y', String(aboveY(part) - (fitted.lines.length - 1 - n) * fitted.size * 1.1))
+  })
+}
+
 /** Paints `state`, `held` where a hold lit the control shown, and what a host shows there. */
 export function paint(part: Part, view: View, state: State & { held: boolean }, rgb: Rgb, told: Told = {}): void {
   const { g } = view
   g.classList.toggle('labelled', told.label !== undefined)
   if (view.lines) padLabel(part, view.lines, told.label)
+  else if (view.above) aboveLabel(part, view.above, told.label)
   else if (view.text && inside(part)) {
     // A host's label takes the printed one's place, cut where even the smallest size does not fit it.
     const text = told.label === undefined ? (part.label ?? '') : fit(told.label, dims(part.size)[0] * 0.85, 1, 12, 5).lines[0]

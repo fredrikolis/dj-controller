@@ -27,6 +27,9 @@ export function fit(text: string, width: number, rows: number, max: number, min:
   return { size: min, lines: wrap(words, chars(min), rows).map((line) => cut(line, chars(min))) }
 }
 
+/** Words longer than `chars` broken there. */
+export const broken = (text: string, chars: number): string => text.replace(new RegExp(`(\\S{${chars}})(?=\\S)`, 'g'), '$1 ')
+
 export function checked(text: string): string {
   if (typeof text !== 'string' || text.trim().length === 0 || text.length > 32 || /[\u0000-\u001f\u007f]/.test(text)) {
     throw new RangeError(`a label is 1 to 32 characters with no control character, not ${JSON.stringify(text)}; pass undefined to clear one`)
