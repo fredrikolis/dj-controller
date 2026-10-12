@@ -20,6 +20,9 @@ export type FxPoint = { readonly input: AudioNode; readonly output: AudioNode; r
 /** A point on each channel after its fader, the sampler's before the master sum, the master's before the limiter. */
 export type FxPoints = { readonly channels: Pair<FxPoint>; readonly sampler: FxPoint; readonly master: FxPoint }
 
+/** A channel's Sound Color FX points: after its EQ, and after the crossfader, where an echo or reverb rings on (MAN p.174). */
+export type ColourPoints = { readonly pre: FxPoint; readonly post: FxPoint }
+
 export type Mixer = {
   readonly mix: Watched<Mix>
   /** Where deck `deck`'s player connects. */
@@ -27,6 +30,7 @@ export type Mixer = {
   /** Where the sampler deck joins the master: at the decks' output level, through its FX point. */
   readonly master: AudioNode
   readonly points: FxPoints
+  readonly colour: Pair<ColourPoints>
   trim(deck: DeckIndex, position: number): void
   fader(deck: DeckIndex, position: number): void
   eq(deck: DeckIndex, band: Band, position: number): void
@@ -46,7 +50,7 @@ const SMOOTH_SECS = 0.01
 // rekordbox's [Output Level] before the mix (RB p.242): songs peak at 1.0, so one deck stays off the limiter.
 const OUTPUT_LEVEL = 10 ** (-6 / 20)
 
-type Strip = { level: GainNode; trim: GainNode; eq: Record<Band, BiquadFilterNode>; fader: GainNode; point: FxPoint; crossfader: GainNode; meter: AnalyserNode; samples: Float32Array<ArrayBuffer> }
+type Strip = { level: GainNode; trim: GainNode; eq: Record<Band, BiquadFilterNode>; fader: GainNode; point: FxPoint; colour: ColourPoints; crossfader: GainNode; meter: AnalyserNode; samples: Float32Array<ArrayBuffer> }
 
 function pointOf(ctx: AudioContext): FxPoint {
   const input = new GainNode(ctx)
@@ -65,10 +69,13 @@ function strip(ctx: AudioContext, master: AudioNode): Strip {
   const level = new GainNode(ctx, { gain: OUTPUT_LEVEL })
   const trim = new GainNode(ctx)
   level.connect(trim).connect(eq.low)
-  eq.low.connect(eq.mid).connect(eq.hi).connect(fader).connect(point.input)
-  point.output.connect(crossfader).connect(master)
+  const colour = { pre: pointOf(ctx), post: pointOf(ctx) }
+  eq.low.connect(eq.mid).connect(eq.hi).connect(colour.pre.input)
+  colour.pre.output.connect(fader).connect(point.input)
+  point.output.connect(crossfader).connect(colour.post.input)
+  colour.post.output.connect(master)
   eq.hi.connect(meter)
-  return { level, trim, eq, fader, point, crossfader, meter, samples: new Float32Array(meter.fftSize) }
+  return { level, trim, eq, fader, point, colour, crossfader, meter, samples: new Float32Array(meter.fftSize) }
 }
 
 const channel = (assign: Assign): Channel => ({ trim: 0.5, fader: 1, eq: { hi: 0.5, mid: 0.5, low: 0.5 }, assign })
@@ -106,6 +113,7 @@ export function createMixer(ctx: AudioContext, signal: AbortSignal): Mixer {
     input: (deck) => strips[deck].level,
     master,
     points: { channels: [strips[0].point, strips[1].point], sampler: samplerPoint, master: masterPoint },
+    colour: [strips[0].colour, strips[1].colour],
     trim: (deck, trim) => patch(deck, (c) => ({ ...c, trim })),
     fader: (deck, fader) => patch(deck, (c) => ({ ...c, fader })),
     eq: (deck, band, position) => patch(deck, (c) => ({ ...c, eq: { ...c.eq, [band]: position } })),

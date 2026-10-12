@@ -1,5 +1,5 @@
-// Concern: the audio-thread effect processor: rolls, brakes, spins, stretch from a ring of the sound, TRANS, CRUSH, ENIGMA JET, MOBIUS | Non-concern: the maths (dsp.ts) | IO: messages, audio -> audio
-import { brakeOffset, CRUSH_BITS, CRUSH_HOLD, crushed, grainStart, grainWeight, jetMs, JET_MS, jetWeight, keepsStart, MOBIUS_PARTIALS, mobiusHz, mobiusLevel, rollOffset, slewed, spinOffset, stopGain, stretchRead, transOpen, waveAt } from './dsp.ts'
+// Concern: the audio-thread effect processor: rolls, brakes, spins, stretch from a ring of the sound, TRANS, CRUSH, ENIGMA JET, PITCH, MOBIUS | Non-concern: the maths | IO: messages, audio -> audio
+import { brakeOffset, CRUSH_BITS, CRUSH_HOLD, crushed, grainStart, grainWeight, jetMs, JET_MS, jetWeight, keepsStart, MOBIUS_PARTIALS, mobiusHz, mobiusLevel, rollOffset, SHIFT_SECONDS, shiftDelay, shiftStep, slewed, spinOffset, stopGain, stretchRead, transOpen, waveAt } from './dsp.ts'
 import { FX_PROCESSOR, RING_SECONDS, type BufferEffect, type FxMessage, type Wave } from './messages.ts'
 
 declare const sampleRate: number
@@ -45,7 +45,12 @@ class Fx extends AudioWorkletProcessor {
   #beatsASecond = 2
   #trans: { readonly beats: number; readonly cut: number; readonly open: number } | null = null
   #gate = 1
-  #crush = false
+  #crush = 0
+  #pitch = 1
+  #pitchMix = 0
+  #pitchPhase = 0
+  #pitchRings: Float32Array[]
+  #pitchFrames = Math.round(SHIFT_SECONDS * sampleRate)
   #crushMix = 0
   #held = 0
   #heldSamples: Float32Array
@@ -70,6 +75,7 @@ class Fx extends AudioWorkletProcessor {
     this.#channels = channels
     this.#rings = Array.from({ length: channels }, () => new Float32Array(Math.ceil(RING_SECONDS * sampleRate)))
     this.#jetRings = Array.from({ length: channels }, () => new Float32Array(Math.ceil(((2 * JET_MS[1]) / 1000) * sampleRate)))
+    this.#pitchRings = Array.from({ length: channels }, () => new Float32Array(2 * this.#pitchFrames))
     this.#heldSamples = new Float32Array(channels)
     this.port.onmessage = (e: MessageEvent<FxMessage>) => this.#told(e.data)
   }
@@ -95,7 +101,10 @@ class Fx extends AudioWorkletProcessor {
         this.#trans = message.beats === null ? null : { beats: message.beats, cut: message.cut, open: message.open }
         return
       case 'crush':
-        this.#crush = message.on
+        this.#crush = message.mix
+        return
+      case 'pitch':
+        this.#pitch = message.ratio
         return
       case 'jet':
         this.#jet = message.beats === null ? null : { beats: message.beats, mix: message.mix }
@@ -177,7 +186,7 @@ class Fx extends AudioWorkletProcessor {
       const before = fading ? this.#taps(this.#was, this.#before) : 0
       if (fading) this.#fade = Math.min(1, this.#fade + 1 / FADE_FRAMES)
       const crushing = this.#held++ % CRUSH_HOLD === 0
-      this.#crushMix += ((this.#crush ? 1 : 0) - this.#crushMix) * this.#smooth
+      this.#crushMix += (this.#crush - this.#crushMix) * this.#smooth
       const t = this.#trans
       const shut = t === null || transOpen(this.#beat, t.beats, t.open) ? 1 : 1 - t.cut
       this.#gate += (shut - this.#gate) * this.#smooth
@@ -186,6 +195,11 @@ class Fx extends AudioWorkletProcessor {
       if (jet) this.#jetPhase += (Math.sign(jet.beats) * beatStep) / Math.abs(jet.beats)
       const jetting = this.#jetMix > 1e-5
       const tone = this.#tone(beatStep)
+      const shifting = this.#pitch !== 1
+      this.#pitchMix += ((shifting ? 1 : 0) - this.#pitchMix) * this.#slowSmooth
+      if (shifting) this.#pitchPhase += shiftStep(this.#pitch, this.#pitchFrames)
+      const shifted = this.#pitchMix > 1e-5
+      const pitchN = 2 * this.#pitchFrames
       this.#dry += (this.#dryTold - this.#dry) * this.#slowSmooth
       this.#wet += (this.#wetTold - this.#wet) * this.#slowSmooth
       for (let c = 0; c < this.#channels; c++) {
@@ -202,6 +216,13 @@ class Fx extends AudioWorkletProcessor {
         if (jetting) for (let v = 0; v < 2; v++) delayed += at(jetRing, this.#written - (jetMs(this.#jetPhase, v) / 1000) * sampleRate) * jetWeight(this.#jetPhase, v)
         jetRing[this.#written % jetN] = x + JET_FEEDBACK * delayed
         if (jetting) x = x * (1 - this.#jetMix / 2) + delayed * (this.#jetMix / 2)
+        const pitchRing = this.#pitchRings[c]
+        pitchRing[this.#written % pitchN] = x
+        if (shifted) {
+          let moved = 0
+          for (let v = 0; v < 2; v++) moved += at(pitchRing, this.#written - shiftDelay(this.#pitchPhase, v, this.#pitchFrames)) * jetWeight(this.#pitchPhase, v)
+          x = x * (1 - this.#pitchMix) + moved * this.#pitchMix
+        }
         output[c][i] = x + tone
       }
       this.#beat += beatStep

@@ -51,6 +51,7 @@ function leftOut(flx: Flx10, signal: AbortSignal): Readonly<Record<string, reado
   const { channels, headphones, mic, masterCue, samplerCue, masterLevel, boothLevel } = flx.mixer
   const moves = (control: Absolute | Switch) => control.changes({ signal })
   const presses = (button: Button<unknown>) => button.presses({ signal })
+  // COLOR and SOUND COLOR FX are features/sound-color-fx; SAMPLER VOL the sampler's.
   const strip = (c: Strip) => [c.fader, c.trim, c.eq.hi, c.eq.mid, c.eq.low, c.color, ...Object.values(c.crossfaderAssign)].map(moves)
   return {
     'the demo has no deck 3 or 4': [...strip(channels[2]), ...strip(channels[3]), moves(channels[2].linePhono.line), moves(channels[3].linePhono.line)],
@@ -59,7 +60,6 @@ function leftOut(flx: Flx10, signal: AbortSignal): Readonly<Record<string, reado
     'the demo has no stems (FX PART SELECT; Part ISO is SHIFT+CH CUE)': Object.values(flx.effect.fxPart).map(presses),
     "the unit's own attenuators set its MASTER, BOOTH and PHONES outputs, after the computer's sound (MAN p.174)": [masterLevel, boothLevel, headphones.level].map(moves),
     "the unit's own microphone path (MAN p.174): the demo takes no microphone": [mic.off, mic.on, mic.talkover, mic.eq.hi, mic.eq.low].map(moves),
-    'COLOR and SOUND COLOR FX are not built': [...DECKS.map((d) => moves(channels[d].color)), ...Object.values(flx.effect.soundColor).map(presses)],
   }
 }
 

@@ -1,4 +1,4 @@
-// Concern: the effect maths both threads share: beats, balance, TRANS, rolls, brakes, spins, stretch, jet, Shepard tones, crushing, the clock | Non-concern: the nodes | IO: (time, beats) -> numbers
+// Concern: effect maths both threads share: beats, balance, TRANS, rolls, brakes, spins, stretch, jet, pitch shift, Shepard tones, crushing, clock | Non-concern: nodes | IO: (time, beats) -> numbers
 import type { BufferEffect, Wave } from './messages.ts'
 
 export const beatSeconds = (bpm: number): number => {
@@ -64,6 +64,13 @@ const turn = (x: number): number => ((x % 1) + 1) % 1
 export const jetMs = (phase: number, voice: number): number => JET_MS[0] + (JET_MS[1] - JET_MS[0]) * (1 - turn(phase + voice / 2))
 
 export const jetWeight = (phase: number, voice: number): number => Math.sin(Math.PI * turn(phase + voice / 2)) ** 2
+
+// A pitch shift: two taps a window apart in turn, each read faster or slower than the sound comes. ASSUMPTION: a 60 ms window.
+export const SHIFT_SECONDS = 0.06
+
+export const shiftStep = (ratio: number, frames: number): number => (1 - ratio) / frames
+
+export const shiftDelay = (phase: number, voice: number, frames: number): number => frames * turn(phase + voice / 2)
 
 // MAN pp.97-98. ASSUMPTION: its partials.
 export const MOBIUS_PARTIALS = 8

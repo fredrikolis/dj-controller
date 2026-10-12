@@ -107,7 +107,7 @@ export function createPadFxUnit(ctx: AudioContext, songBpm: number, signal: Abor
       const trans = active.findLast((a) => a.effect === 'trans')
       const transBeats = trans ? beatsOf(trans.timing, 'trans') : null
       if (transBeats !== sent.trans) tell({ kind: 'trans', beats: transBeats, cut: 1, open: 0.5 })
-      if (has('crush') !== sent.crush) tell({ kind: 'crush', on: has('crush') })
+      if (has('crush') !== sent.crush) tell({ kind: 'crush', mix: has('crush') ? 1 : 0 })
       sent = { mode, frames, trans: transBeats, crush: has('crush') }
       glide(lpf.frequency, has('lpf') ? FILTER_ON.lpf : FILTER_OFF.lpf, ctx)
       glide(hpf.frequency, has('hpf') ? FILTER_ON.hpf : FILTER_OFF.hpf, ctx)

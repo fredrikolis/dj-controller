@@ -15,6 +15,7 @@ import { memoryCues } from './features/memory-cues/memory-cues.ts'
 import { mixer } from './features/mixer/mixer.ts'
 import { padFx } from './features/pad-fx/pad-fx.ts'
 import { sampler } from './features/sampler/sampler.ts'
+import { soundColorFx } from './features/sound-color-fx/sound-color-fx.ts'
 import { syncMaster } from './features/sync-master/sync-master.ts'
 import { find } from './shared/dom.ts'
 import { createDesk, type Desk } from './shared/engine/engine.ts'
@@ -30,7 +31,7 @@ document.adoptedStyleSheets = [...document.adoptedStyleSheets, theme]
 const query = new URLSearchParams(location.search)
 
 /** Every FLX10 function the demo plays, each its own module. */
-const FEATURES: readonly Feature[] = [deckTransport, beatJump, masterTempo, keyShift, jog, syncMaster, loops, hotCues, memoryCues, padFx, beatFx, sampler, mixer]
+const FEATURES: readonly Feature[] = [deckTransport, beatJump, masterTempo, keyShift, jog, syncMaster, loops, hotCues, memoryCues, padFx, beatFx, soundColorFx, sampler, mixer]
 const twin = find('dj-controller-twin', Twin, document)
 const report = reporter(find('#error', HTMLElement, document), signal)
 const fixed = layout(query)
