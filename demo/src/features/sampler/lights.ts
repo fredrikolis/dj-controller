@@ -6,12 +6,12 @@ import type { SamplerState } from '../../shared/sampler/sampler-state.ts'
 import { playingAt } from './players.ts'
 
 // RB p.196, p.235: each slot's own colour. ASSUMPTION: by kind.
-export const KIND_COLOURS: Readonly<Record<Kind, number>> = { drum: 37, stab: 9, fx: 53, loop: 21 }
+const KIND_COLOURS: Readonly<Record<Kind, number>> = { drum: 37, stab: 9, fx: 53, loop: 21 }
 
-export const EMPTY_COLOUR = 0
+const EMPTY_COLOUR = 0
 
 // ASSUMPTION: as the hot loop's.
-export const playingBlink = (colour: number): Pattern<number> => ({ steps: [[colour, 250], [127, 250]], repeat: true })
+const playingBlink = (colour: number): Pattern<number> => ({ steps: [[colour, 250], [127, 250]], repeat: true })
 
 export function planOf(views: ModeViews, deck: number, s: SamplerState, ready: (slot: Slot) => boolean, showing: boolean): Plan {
   const steady: Steady[] = []

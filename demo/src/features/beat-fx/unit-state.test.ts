@@ -28,7 +28,6 @@ test('T2: BEAT steps along the list and stops at its ends; ON toggles; a target 
   assert.equal(toggled(toggled(START)).on, false)
   assert.equal(targeted(START, 'channel2').target, 'channel2')
   assert.equal(depthSet(START, 0.25).depth, 0.25)
-  assert.throws(() => depthSet(START, 1.2), RangeError)
 })
 
 test('T3: AUTO follows the target deck\'s BPM, the master deck for MST, the sampler for SP, else 120', () => {

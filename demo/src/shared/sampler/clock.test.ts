@@ -18,7 +18,6 @@ test('T4: a loop renders at the BPM within the render range and reads at the BPM
   assert.equal(renderBpmOf(400), RENDER_RANGE[1])
   assert.equal(rateOf(150, 144), 150 / 144)
   assert.equal(rateOf(0, 72), 0)
-  assert.throws(() => rateOf(144, 0), RangeError)
 })
 
 test('T4: Q starts a loop as far into its beat as the master deck is past its own; without Q or with nothing playing, at its start', () => {

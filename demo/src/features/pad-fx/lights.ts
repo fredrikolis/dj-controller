@@ -4,7 +4,7 @@ import { slotAt, slotOf, type Effect } from './banks.ts'
 import { isOn, type Holding } from './hold.ts'
 
 // ASSUMPTION: RB p.235 publishes no [PAD FX color] values.
-export const EFFECT_COLOURS: Readonly<Record<Effect, number>> = {
+const EFFECT_COLOURS: Readonly<Record<Effect, number>> = {
   echo: 9,
   lowCutEcho: 13,
   dubEcho: 17,
@@ -23,7 +23,7 @@ export const EFFECT_COLOURS: Readonly<Record<Effect, number>> = {
 }
 
 // RB p.189: a held pad lights up. ASSUMPTION: whitest.
-export const ON_COLOUR = 127
+const ON_COLOUR = 127
 
 export function planOf(banks: readonly ModeViews[], holding: Holding, shown: { readonly bank: number; readonly page: number } | null): Plan {
   const steady: Steady[] = []

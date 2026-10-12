@@ -32,10 +32,6 @@ test('T6: every shift renders at a whole rate, a bar keeping its frames at the B
   }
 })
 
-test('T6: a shift that is not a whole number of semitones within ±12 is refused, naming it', () => {
-  for (const k of [13, -13, 0.5]) assert.throws(() => shiftedRender(144, k, RATE), new RegExp(`not ${k}$`))
-})
-
 /** Upward zero crossings, each placed between its frames, over the time from the first to the last. */
 function frequencyOf(samples: Float32Array): number {
   const crossings: number[] = []

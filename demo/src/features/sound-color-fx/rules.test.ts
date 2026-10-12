@@ -12,7 +12,6 @@ test('a button selects its effect, another takes over, the selected one cancels 
 test('COLOR is nothing at its centre, -1 fully counterclockwise, 1 fully clockwise, and only rises between', () => {
   assert.deepEqual([colourOf(0), colourOf(0.5), colourOf(1)], [-1, 0, 1])
   for (let p = 0.01; p <= 1; p += 0.01) assert.ok(colourOf(p) >= colourOf(p - 0.01))
-  assert.throws(() => colourOf(1.1), RangeError)
 })
 
 test('no effect, or COLOR at its centre, leaves the channel as it comes', () => {

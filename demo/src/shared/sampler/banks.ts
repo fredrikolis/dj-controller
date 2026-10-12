@@ -12,8 +12,6 @@ export const BANKS = 4
 export const POSITIONS = 16
 export const PADS = 8
 
-export const LOOP_BARS: readonly number[] = [1, 2, 4]
-
 const shot = (name: string, node: string, kind: Kind): Slot => ({ name, node, mode: 'oneshot', kind, bars: null })
 const gate = (name: string, node: string): Slot => ({ name, node, mode: 'gate', kind: 'fx', bars: null })
 const loop = (name: string, node: string, bars: number): Slot => ({ name, node, mode: 'loop', kind: 'loop', bars })
@@ -38,7 +36,7 @@ const LOOPS: readonly Slot[] = [
   loop('Pad', 'loop-pad', 4), loop('Pluck melody', 'loop-pluck', 2), loop('Chip lead', 'loop-chip', 2), loop('Offbeat bass', 'loop-offbeat', 1),
 ]
 
-export const SAMPLER_BANKS: readonly (readonly (Slot | null)[])[] = [DRUMS, STABS_AND_FX, LOOPS, Array.from({ length: POSITIONS }, () => null)]
+const SAMPLER_BANKS: readonly (readonly (Slot | null)[])[] = [DRUMS, STABS_AND_FX, LOOPS, Array.from({ length: POSITIONS }, () => null)]
 
 /** Every loaded slot, bank by bank. */
 export const SLOTS: readonly Slot[] = SAMPLER_BANKS.flat().filter((slot) => slot !== null)

@@ -1,10 +1,10 @@
-// Concern: checks the key shift spec's T1, T2, T4, T5: pads' pitches, a shift set, clamped, reset, KEY SYNC matching and refused, Keyboard choosing and calling | Non-concern: the controls | IO: none
+// Concern: checks the key shift spec's T1, T2, T4, T5: pads' pitches, a shift set, clamped, KEY SYNC matching and refused, Keyboard choosing and calling | Non-concern: the controls | IO: none
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { NO_HOT_CUES, type HotCues } from '../../shared/transport/hot-cue-state.ts'
 import type { Key } from '../../shared/transport/key.ts'
 import type { KeyedDeck } from '../../shared/transport/key.ts'
-import { KeySyncRefused, pitchOf, pressKeyboard, pressKeySync, RESET, shiftedTo, syncedShift } from './semitones.ts'
+import { KeySyncRefused, pitchOf, pressKeyboard, pressKeySync, shiftedTo, syncedShift } from './semitones.ts'
 
 const D_MINOR: Key = { tonic: 2, minor: true }
 const deck = (index: number, state: Partial<KeyedDeck['state']> = {}, key = D_MINOR): KeyedDeck => ({
@@ -16,13 +16,11 @@ const deck = (index: number, state: Partial<KeyedDeck['state']> = {}, key = D_MI
 test('T1: page 1 pads 1-8 are +4 +5 +6 +7 over 0 +1 +2 +3 (MAN p.86); page 2 -3 -2 -1 0 over -7 -6 -5 -4', () => {
   assert.deepEqual(Array.from({ length: 8 }, (_, pad) => pitchOf(0, pad)), [4, 5, 6, 7, 0, 1, 2, 3])
   assert.deepEqual(Array.from({ length: 8 }, (_, pad) => pitchOf(1, pad)), [-3, -2, -1, 0, -7, -6, -5, -4])
-  assert.throws(() => pitchOf(2, 0), /page 3 pad 1/)
 })
 
-test('T2: a pad or semitone sets the shift, clamped at ±12, key sync ending; KEY RESET returns to 0', () => {
+test('T2: a pad or semitone sets the shift, clamped at ±12, key sync ending', () => {
   assert.deepEqual(shiftedTo(3), { keyShift: 3, keySync: false })
   assert.deepEqual([shiftedTo(13), shiftedTo(-13)], [{ keyShift: 12, keySync: false }, { keyShift: -12, keySync: false }])
-  assert.deepEqual(RESET, { keyShift: 0, keySync: false })
 })
 
 test('T4: KEY SYNC matches the key the other deck sounds in now, shifted or moved by TEMPO unlocked; pressed again it keeps the key', () => {

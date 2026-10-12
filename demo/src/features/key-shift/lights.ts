@@ -13,7 +13,7 @@ export const pitchKind = (pitch: number): PitchKind => (pitch === 0 ? 'zero' : p
 // ASSUMPTION: rekordbox's are uncaptured.
 export const PITCH_COLOURS: Readonly<Record<PitchKind | 'asked', number>> = { zero: 21, up: 9, down: 53, asked: 127 }
 
-export const pitchColour = (pitch: number, asked: number): number => PITCH_COLOURS[pitch === asked ? 'asked' : pitchKind(pitch)]
+const pitchColour = (pitch: number, asked: number): number => PITCH_COLOURS[pitch === asked ? 'asked' : pitchKind(pitch)]
 
 export const signed = (n: number): string => (n > 0 ? `+${n}` : String(n))
 

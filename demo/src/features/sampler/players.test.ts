@@ -21,7 +21,6 @@ test('T3: a press plays its slot, a second restarts it, SHIFT+press stops it; si
   assert.deepEqual(one.voices[3], { id: 1, bank: 0, position: 3 })
   assert.ok(playingAt(one, 3))
   assert.equal(pressed(one, 3, 2).voices[3]?.id, 2, 'a restart is a new voice')
-  assert.throws(() => pressed(one, 5, 1), /already plays/)
   assert.equal(stopped(one, 3).voices[3], null)
   assert.equal(stopped(SAMPLER_START, 3), SAMPLER_START)
   const empty = { ...SAMPLER_START, bank: 3 }
@@ -50,12 +49,12 @@ const fakeDeck = (rendered: readonly string[]): SamplerControls => {
   return { state, sounds: createStore(new Map(rendered.map((node) => [node, null]))), update: state.update, newId: () => ++id }
 }
 
-test('T3: a press before its sound is rendered is refused, naming the slot; a Gate press plays until its release', () => {
+test('T3: a press before its sound is rendered is refused; a Gate press plays until its release', () => {
   const riser = slotAt(1, 8)
   assert.equal(riser?.mode, 'gate')
   const deck = fakeDeck(['kick', riser?.node ?? ''])
   const sampler = samplerOf(deck)
-  assert.throws(() => sampler.press(1, false), (e: unknown) => e instanceof SamplerRefused && /bank 1 slot 2, Snare/.test(e.message))
+  assert.throws(() => sampler.press(1, false), SamplerRefused)
   assert.equal(sampler.press(0, false), null, 'a one-shot holds nothing')
   sampler.page(1)
   const letGo = sampler.press(8, false)

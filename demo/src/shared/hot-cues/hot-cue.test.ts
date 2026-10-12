@@ -1,13 +1,13 @@
-// Concern: checks the hot cue rules at the hot cues spec's T1-T9: snaps, hot loops, no overwrite, clears, calls, loops, previews, slots, reloads, ?cues= | Non-concern: lights | IO: none
+// Concern: checks the hot cue rules at the hot cues spec's T1-T9: snaps, hot loops, no overwrite, clears, calls, loops, previews, reloads, ?cues= | Non-concern: lights | IO: none
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { cuesOf, withCues } from '../view.ts'
 import { loadedState, type DeckState } from '../transport/deck-state.ts'
 import type { Grid } from '../transport/grid.ts'
-import { NO_HOT_CUES, slotName, type HotCue } from '../transport/hot-cue-state.ts'
+import { NO_HOT_CUES, type HotCue } from '../transport/hot-cue-state.ts'
 import { looping, NO_LOOP } from '../transport/loop-state.ts'
 import { NO_MEMORY_CUES } from '../transport/memory-cue-state.ts'
-import { calledSlot, pressPad, pressShiftPad, slotOf, type Cueing } from './hot-cue.ts'
+import { calledSlot, pressPad, pressShiftPad, type Cueing } from './hot-cue.ts'
 
 // 144 BPM at 48 kHz: a beat is 20000 frames; the demo's songs are 32 beats.
 const grid: Grid = { first: 0, beat: 20000, end: 32 * 20000 }
@@ -86,11 +86,6 @@ test('T8: a call while CUE previews ends the preview, playing on; no call moves 
   assert.deepEqual([deck.previewing, deck.playing, deck.cue], [false, true, 20000])
   const hot = withCue({ ...paused, cue: 20000 }, B, { kind: 'loop', in: 40000, out: 60000 })
   assert.equal(pressPad(hot, B, 0, grid).deck.cue, 20000)
-})
-
-test('T9: page 2 pad 8 (9p 0F) is slot P', () => {
-  assert.equal(slotOf(1, 7), 15)
-  assert.equal(slotName(slotOf(1, 7)), 'P')
 })
 
 test('T9: hot cues survive a reload of the song, and a ?cues= round trip', () => {

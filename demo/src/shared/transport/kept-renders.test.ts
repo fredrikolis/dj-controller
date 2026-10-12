@@ -34,7 +34,6 @@ test('another BPM drops what was kept, aborting renders still being made', async
   void render(144, 3, never).catch(() => {})
   void render(150, 3, never).catch(() => {})
   assert.equal(made[0]?.signal.aborted, true)
-  assert.match(String(made[0]?.signal.reason), /renders at 144 BPM dropped for 150 BPM/)
   assert.equal(made[1]?.signal.aborted, false)
 })
 

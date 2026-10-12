@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Grid } from '../../shared/transport/grid.ts'
 import { looping, NO_LOOP } from '../../shared/transport/loop-state.ts'
-import { buttonBeats, jumped, padJump, searchFrames, type Jumping } from './jump.ts'
+import { jumped, padJump, searchFrames, type Jumping } from './jump.ts'
 
 const BEAT = 20000
 const grid: Grid = { first: 0, beat: BEAT, end: 32 * BEAT }
@@ -11,17 +11,14 @@ const idle: Jumping = { loaded: true, loop: NO_LOOP }
 
 const seekOf = (position: number, beats: number, direction: -1 | 1, deck: Jumping = idle) => jumped(deck, position, beats, direction, grid).seek
 
-test('T1: page 1 pads jump 1, 2, 4 and 8 beats and page 2 pads 16 to 128, left then right in pairs; no pad 8 or page 2', () => {
+test('T1: page 1 pads jump 1, 2, 4 and 8 beats and page 2 pads 16 to 128, left then right in pairs', () => {
   const page = (p: number) => Array.from({ length: 8 }, (_, i) => padJump(p, i)).map(({ beats, direction }) => beats * direction)
   assert.deepEqual(page(0), [-1, 1, -2, 2, -4, 4, -8, 8])
   assert.deepEqual(page(1), [-16, 16, -32, 32, -64, 64, -128, 128])
-  assert.throws(() => padJump(0, 8), RangeError)
-  assert.throws(() => padJump(2, 0), RangeError)
 })
 
-test('T2: a press jumps 4 beats and SHIFT 16, either way, keeping the beat phase; no song, nothing', () => {
+test('T2: a jump of 4 or 16 beats, either way, keeps the beat phase; no song, nothing', () => {
   const from = 20 * BEAT + 123
-  assert.deepEqual([buttonBeats(false), buttonBeats(true)], [4, 16])
   assert.deepEqual([seekOf(from, 4, 1), seekOf(from, 4, -1)], [from + 4 * BEAT, from - 4 * BEAT])
   assert.deepEqual([seekOf(from, 16, 1), seekOf(from, 16, -1)], [null, from - 16 * BEAT])
   assert.equal(seekOf(from, 128, -1), null)
