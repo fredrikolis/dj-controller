@@ -5,12 +5,21 @@ import type { Flx10 } from '../../shared/flx10.ts'
 import { ledOut, showLights, type Plan } from '../../shared/lights/show-lights.ts'
 import { changes, type Store } from '../../shared/store.ts'
 import { follow } from '../../shared/streams.ts'
+import type { TwinText } from '../../shared/twin-text.ts'
 import { colourOf, EFFECTS, pressed, type ColorFx } from './rules.ts'
 
 export type ColorFxState = { readonly selected: ColorFx | null; readonly colours: readonly [number, number] }
 
 // MAN p.99: the pressed button flashes. ASSUMPTION: the loops' blink.
 export const SELECTED_BLINK: Pattern<boolean> = { steps: [[true, 250], [false, 250]], repeat: true }
+
+// MAN pp.99-101: the names on the buttons.
+const NAMES: Readonly<Record<ColorFx, string>> = { space: 'SPACE', dubEcho: 'DUB ECHO', crush: 'CRUSH', pitch: 'PITCH', noise: 'NOISE', filter: 'FILTER' }
+
+/** Each COLOR knob named on the twin by the effect it turns, its printed legend with none selected. */
+export function labelKnobs(flx: Flx10, text: TwinText, state: Store<ColorFxState>, signal: AbortSignal): void {
+  state.watch((s) => DECKS.forEach((d) => text.label(flx.mixer.channels[d].color, s.selected === null ? undefined : NAMES[s.selected])), signal)
+}
 
 export function playColorFx(flx: Flx10, state: Store<ColorFxState>, signal: AbortSignal): Promise<void>[] {
   const buttons = flx.effect.soundColor
