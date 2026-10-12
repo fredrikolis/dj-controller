@@ -30,9 +30,9 @@ function positionOf<P extends string>(positions: Positions<P>, selector: string)
 
 /** The unit as the FLX10's knobs stand: the effect, the target and LEVEL/DEPTH its state reply gave. */
 export function stateOf(flx: Flx10): BeatFxState {
-  const level = flx.effect.levelDepth
-  if (level.value === undefined) throw new Error('the FLX10 has not reported BEAT FX LEVEL/DEPTH (MML F15 B4 02); its state reply carries it')
-  return { ...START, effect: positionOf(effectSwitches(flx), 'BEAT FX SELECT'), target: positionOf(targetSwitches(flx), 'BEAT FX CH SELECT'), depth: level.value / level.max }
+  const level = flx.effect.levelDepth.read()
+  if (level === undefined) throw new Error('the FLX10 has not reported BEAT FX LEVEL/DEPTH (MML F15 B4 02); its state reply carries it')
+  return { ...START, effect: positionOf(effectSwitches(flx), 'BEAT FX SELECT'), target: positionOf(targetSwitches(flx), 'BEAT FX CH SELECT'), depth: level.value }
 }
 
 // flx10-midi.md F13/F14: whether the position left reports off is unverified, so the newest on wins.
@@ -74,7 +74,7 @@ export function playBeatFx(flx: Flx10, fx: BeatFxControls, signal: AbortSignal):
   return [
     ...followPositions(effectSwitches(flx), fx.select, signal),
     ...followPositions(targetSwitches(flx), fx.target, signal),
-    follow(level.changes({ signal }), (value) => void unlessRefused(() => fx.depth(value / level.max)), signal),
+    follow(level.changes({ signal }), ({ value }) => void unlessRefused(() => fx.depth(value)), signal),
     follow(left.presses({ signal }), (press) => void unlessRefused(() => fx.beat(-1, press.shift, press.time, pads.count())), signal),
     follow(right.presses({ signal }), (press) => void unlessRefused(() => fx.beat(1, press.shift, press.time, pads.count())), signal),
     // MAN p.55 item 8; RB p.185: a Release FX acts while held.

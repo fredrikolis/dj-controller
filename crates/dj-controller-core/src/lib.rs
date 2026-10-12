@@ -17,5 +17,6 @@ pub mod output;
 pub mod schedule;
 pub mod session;
 pub mod state;
+pub mod stepping;
 pub mod usb_midi;
 pub mod virtual_unit;

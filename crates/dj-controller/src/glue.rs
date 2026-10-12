@@ -15,6 +15,7 @@ use dj_controller_core::error::Error;
 use dj_controller_core::lease::{Lease, Pattern};
 use dj_controller_core::model::{Model, Palette};
 use dj_controller_core::session::Feed;
+use dj_controller_core::stepping::Positions;
 
 use futures_lite::{Stream, StreamExt};
 use js_sys::{Array, Function, Object, Promise};
@@ -544,18 +545,33 @@ impl AsJs for Switch {
 #[wasm_bindgen(skip_typescript)]
 pub struct AbsoluteControl(Absolute);
 
+/// The `positions` of a reader's options: left out, `"all"` or a number; anything else a `TypeError`.
+fn positions_of(options: &JsValue) -> Result<Positions, JsValue> {
+    if options.is_undefined() || options.is_null() {
+        return Ok(Positions::Default);
+    }
+    let asked = js_sys::Reflect::get(options, &"positions".into()).unwrap_throw();
+    match (asked.as_f64(), asked.as_string().as_deref()) {
+        _ if asked.is_undefined() => Ok(Positions::Default),
+        (Some(count), _) => Ok(Positions::Count(count)),
+        (_, Some("all")) => Ok(Positions::All),
+        _ => Err(js_sys::TypeError::new("positions is a number or \"all\"").into()),
+    }
+}
+
 #[wasm_bindgen]
 impl AbsoluteControl {
-    #[wasm_bindgen(getter)]
-    pub fn value(&self) -> Option<u16> {
-        self.0.value()
-    }
     #[wasm_bindgen(getter)]
     pub fn max(&self) -> u16 {
         self.0.max()
     }
-    pub fn changes(&self, options: JsValue) -> JsValue {
-        Iter::feed(self.0.changes(), JsValue::from, &options)
+    pub fn read(&self, options: JsValue) -> Result<JsValue, JsValue> {
+        let reading = self.0.read(positions_of(&options)?).map_err(error)?;
+        Ok(reading.map_or(JsValue::UNDEFINED, |r| to_js(&r)))
+    }
+    pub fn changes(&self, options: JsValue) -> Result<JsValue, JsValue> {
+        let feed = self.0.changes(positions_of(&options)?).map_err(error)?;
+        Ok(Iter::feed(feed, |r| to_js(&r), &options))
     }
 }
 

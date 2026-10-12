@@ -113,9 +113,9 @@ function absolute(control: () => Absolute, reach: Reach, value: (from: Point, v0
   let from: { at: Point; v0: number; control: Absolute } | undefined
   const set = (c: Absolute, v: number) => {
     const whole = Math.round(Math.min(c.max, Math.max(0, v)))
-    if (whole !== c.value) reach.unit.move(c, whole)
+    if (whole !== c.read()?.raw) reach.unit.move(c, whole)
   }
-  const rest = (c: Absolute) => c.value ?? Math.ceil(c.max / 2)
+  const rest = (c: Absolute) => c.read()?.raw ?? Math.ceil(c.max / 2)
   return {
     role: 'slider',
     down(at, withShift) {

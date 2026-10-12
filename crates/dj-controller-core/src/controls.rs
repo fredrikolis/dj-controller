@@ -9,6 +9,7 @@ use crate::lease::{Lease, Pattern};
 use crate::output::{Output, Show};
 use crate::session::{Feed, Item, Session, Signal, Want, Write};
 use crate::state::Turned;
+use crate::stepping::{Positions, Reading, Stepping};
 
 /// A control's identity as its events carry it.
 pub trait Identity: Copy + Serialize + 'static {
@@ -389,7 +390,7 @@ impl Switch {
     }
 }
 
-/// A fader or knob at full resolution, 0 to `max`.
+/// A fader or knob at full resolution, 0 to `max`, each reader stepping it.
 #[derive(Clone)]
 pub struct Absolute {
     leaf: Leaf,
@@ -407,7 +408,7 @@ impl Absolute {
     }
 
     /// None until the device reports it; a lone 14-bit half keeps the other half last reported.
-    pub fn value(&self) -> Option<u16> {
+    fn raw(&self) -> Option<u16> {
         match self.leaf.session.latest(self.leaf.rows) {
             Some(Value::Absolute(v)) => Some(v),
             _ => None,
@@ -419,13 +420,24 @@ impl Absolute {
         if wide { 0x3FFF } else { 0x7F }
     }
 
-    /// The latest value, read after each report of it.
-    pub fn changes(&self) -> Feed<u16> {
-        let rows = self.leaf.rows;
-        self.leaf.session.feed(Want::Latest(rows), move |session, _| match session.latest(rows) {
-            Some(Value::Absolute(v)) => Some(v),
-            _ => None,
-        })
+    pub fn read(&self, positions: Positions) -> Result<Option<Reading>, Error> {
+        let stepping = Stepping::of(positions, self.max())?;
+        Ok(self.raw().map(|raw| stepping.reading(stepping.position(raw, None), raw)))
+    }
+
+    /// The latest position, read after each report; it holds the one at its creation.
+    pub fn changes(&self, positions: Positions) -> Result<Feed<Reading>, Error> {
+        let stepping = Stepping::of(positions, self.max())?;
+        let (this, rows) = (self.clone(), self.leaf.rows);
+        let mut held = self.raw().map(|raw| stepping.position(raw, None));
+        Ok(self.leaf.session.feed(Want::Latest(rows), move |_, _| {
+            let raw = this.raw()?;
+            let position = stepping.position(raw, held);
+            (held != Some(position)).then(|| {
+                held = Some(position);
+                stepping.reading(position, raw)
+            })
+        }))
     }
 }
 

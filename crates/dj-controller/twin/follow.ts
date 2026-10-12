@@ -89,11 +89,11 @@ export async function follow(part: Part, at: number, signal: AbortSignal, sink: 
     await Promise.all([presses(), 'led' in control && told(control, signal, (lit) => sink.set({ lit }))])
   } else if (part.shape === 'fader' || part.shape === 'knob') {
     const { control, shifted } = part.controls[at]
-    const value = control.value ?? shifted?.value
-    if (value !== undefined) sink.set({ fraction: value / control.max })
+    const raw = (control.read() ?? shifted?.read())?.raw
+    if (raw !== undefined) sink.set({ fraction: raw / control.max })
     await layers(control, shifted, async (layer, shift) => {
-      for await (const value of layer.changes({ signal })) {
-        sink.set({ fraction: value / layer.max })
+      for await (const { raw } of layer.changes({ signal, positions: 'all' })) {
+        sink.set({ fraction: raw / layer.max })
         sink.flash(shift)
         await frame(signal)
       }

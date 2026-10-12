@@ -53,9 +53,9 @@ async function connected(options, entry = connect) {
 test('connect resolves with the state reply already in, every output told its rest state', async () => {
   const { device, flx } = await connected()
   // The recorded reply's first pair: deck 1 TEMPO, B0 00 43 / B0 20 6D.
-  assert.equal(flx.decks[0].tempo.value, (0x43 << 7) | 0x6d)
+  assert.equal(flx.decks[0].tempo.read().raw, (0x43 << 7) | 0x6d)
   assert.equal(flx.decks[0].tempo.max, 16383)
-  assert.equal(flx.mixer.channels[0].fader.value, 0)
+  assert.equal(flx.mixer.channels[0].fader.read().raw, 0)
   assert.ok(device.output.sent.includes(`${PLAY.deck1} 00`))
   assert.equal(device.input.connection, 'open')
   assert.ok(Object.isFrozen(flx) && flx.model === 'DDJ-FLX10' && typeof flx.close === 'function')
@@ -238,7 +238,7 @@ test('an unread stream keeps the newest 4096 reports and counts the rest; a leve
   for (const msb of ['10', '20', '30']) for (const message of [`B0 00 ${msb}`, 'B0 20 00']) device.input.receive(message)
   assert.equal(turns.dropped, 5)
   assert.equal((await turns.next()).value.ticks, 1, 'the sixth turn is the oldest kept')
-  assert.equal((await tempo.next()).value, 0x30 << 7)
+  assert.equal((await tempo.next()).value.raw, 0x30 << 7)
   assert.equal(tempo.dropped, 0)
   await flx.close()
 })
@@ -287,24 +287,24 @@ test('a fader, switch or jog reads its own layer and its shifted view the SHIFT 
   const { device, flx } = await connected()
   const [deck] = flx.decks
   const leaves = flx.mixer.channels[0].faderStart.leavesZero
-  const tempo = deck.tempo.value
+  const tempo = deck.tempo.read().raw
   const own = [deck.tempo.changes(), deck.jog.platter.positions(), leaves.changes()]
   const shifted = [deck.shifted.tempo.changes(), deck.shifted.jog.platter.positions(), flx.mixer.channels[0].shifted.faderStart.leavesZero.changes()]
   // SHIFT held: deck 1 TEMPO B0 05 / B0 25, platter B0 1F, channel 1 fader start 90 5D (MML p.2 D4, D3, M1/M2).
   for (const message of [`${SHIFT} 7F`, 'B0 05 10', 'B0 25 00', 'B0 1F 46', '90 5D 7F']) device.input.receive(message, 10)
-  assert.equal((await shifted[0].next()).value, 0x10 << 7)
+  assert.equal((await shifted[0].next()).value.raw, 0x10 << 7)
   assert.deepEqual({ ...(await shifted[1].next()).value.latest }, { deck: 0, shift: true, layer: '', time: 10 })
   assert.deepEqual({ ...(await shifted[2].next()).value }, { on: true, time: 10 })
-  assert.equal(deck.tempo.value, tempo, 'TEMPO moved with SHIFT held is the shifted view\'s')
+  assert.equal(deck.tempo.read().raw, tempo, 'TEMPO moved with SHIFT held is the shifted view\'s')
   assert.equal(deck.jog.platter.position.ticks, 0)
   assert.equal(deck.shifted.jog.platter.position.ticks, 6)
   assert.equal(leaves.on, undefined)
   // SHIFT let go: TEMPO B0 00 / B0 20, platter vinyl off B0 23, fader start 90 66.
   for (const message of [`${SHIFT} 00`, 'B0 00 20', 'B0 20 00', 'B0 23 3F', '90 66 7F']) device.input.receive(message, 20)
-  assert.equal((await own[0].next()).value, 0x20 << 7, 'the control\'s first change is its own layer\'s')
+  assert.equal((await own[0].next()).value.raw, 0x20 << 7, 'the control\'s first change is its own layer\'s')
   assert.deepEqual({ ...(await own[1].next()).value }, { ticks: -1, latest: { deck: 0, shift: false, layer: 'vinyl-off', time: 20 } })
   assert.deepEqual({ ...(await own[2].next()).value }, { on: true, time: 20 })
-  assert.equal(deck.shifted.tempo.value, 0x10 << 7)
+  assert.equal(deck.shifted.tempo.read().raw, 0x10 << 7)
   await flx.close()
 })
 
@@ -363,10 +363,10 @@ test('a slow reader of a fader gets only its newest value', async () => {
   const tempo = flx.decks[0].tempo.changes()
   // Deck 1 TEMPO, B0 00 / B0 20 (MML p.2 D4).
   for (let msb = 0; msb < 100; msb++) for (const message of [`B0 00 ${msb.toString(16)}`, 'B0 20 00']) device.input.receive(message)
-  assert.equal((await tempo.next()).value, 99 << 7)
+  assert.equal((await tempo.next()).value.raw, 99 << 7)
   const next = tempo.next()
   for (const message of ['B0 00 01', 'B0 20 00']) device.input.receive(message)
-  assert.equal((await next).value, 1 << 7)
+  assert.equal((await next).value.raw, 1 << 7)
   await flx.close()
 })
 
@@ -610,7 +610,7 @@ test('connect waits for the device to be plugged in, and again after an unplug',
   setTimeout(() => device.plug(), 0)
   const replugged = await again
   assert.notEqual(replugged, flx)
-  assert.ok(replugged.decks[0].tempo.value !== undefined)
+  assert.ok(replugged.decks[0].tempo.read() !== undefined)
   await replugged.close()
 })
 

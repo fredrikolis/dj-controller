@@ -30,7 +30,8 @@ function shown(controls: Flx10Deck, deck: Deck): Write[] {
 
 export function playTransport(controls: Flx10Deck, deck: Deck, signal: AbortSignal): Promise<void>[] {
   const tempo = controls.tempo
-  if (tempo.value !== undefined) deck.update({ tempo: tempo.value / tempo.max })
+  const now = tempo.read()
+  if (now) deck.update({ tempo: now.value })
   return [
     follow(controls.playPause.presses({ signal }), (press) => play(deck, press.shift), signal),
     follow(
@@ -46,7 +47,7 @@ export function playTransport(controls: Flx10Deck, deck: Deck, signal: AbortSign
     // MAN p.17 item 12. ASSUMPTION: a plain press does nothing.
     follow(controls.tempoReset.presses({ signal }), (press) => (press.shift ? stepRange(deck) : undefined), signal),
     // Higher is faster (docs/research/flx10-observed-tempo.md).
-    follow(tempo.changes({ signal }), (value) => deck.update({ tempo: value / tempo.max }), signal),
+    follow(tempo.changes({ signal }), ({ value }) => deck.update({ tempo: value }), signal),
     showEachFrame(() => shown(controls, deck), signal),
   ]
 }

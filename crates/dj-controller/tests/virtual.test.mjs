@@ -29,8 +29,8 @@ test('a virtual controller has the tree of a connected one, every control where 
   const shape = (node) => (Array.isArray(node) ? node.map(shape) : Object.getPrototypeOf(node ?? 0) === Object.prototype ? Object.fromEntries(Object.entries(node).filter(([k]) => k !== 'virtual').map(([k, v]) => [k, shape(v)])) : (node?.constructor?.name ?? typeof node))
   assert.deepEqual(shape(virt), shape(real))
   assert.equal(virt.model, 'DDJ-FLX10')
-  assert.equal(virt.mixer.channels[0].fader.value, virt.mixer.channels[0].fader.max)
-  assert.equal(virt.mixer.crossfader.value, 8192)
+  assert.equal(virt.mixer.channels[0].fader.read().raw, virt.mixer.channels[0].fader.max)
+  assert.equal(virt.mixer.crossfader.read().raw, 8192)
   assert.equal(virt.mixer.channels[1].crossfaderAssign.thru.on, true)
   assert.equal(virt.decks[2].inControl.on, false)
   // The same start bank, known on the virtual one, its own device, and assumed on the connected one.
@@ -86,14 +86,63 @@ test('a pad hit arrives on the pad mode its mode button chose', async () => {
   await close()
 })
 
+// B6 1F / B6 3F the crossfader, 0 to 16383 (MML p.2 M1).
+test('a fader is read at the positions its reader asks, held through a border, the same on a virtual and a connected controller', async () => {
+  const { device, real, virt, hands, close } = await both()
+  const faders = [virt, real].map((flx) => flx.mixer.crossfader)
+  const hex = (n) => n.toString(16).padStart(2, '0')
+  const move = (raw) => {
+    hands.move(faders[0], raw)
+    for (const message of [`B6 1F ${hex(raw >> 7)}`, `B6 3F ${hex(raw & 0x7f)}`]) device.input.receive(message)
+  }
+  const each = (read) => faders.map((fader) => read(fader))
+  const same = (got, expected, why) => got.forEach((reading) => assert.deepEqual({ ...reading }, expected, why))
+  move(8192)
+  same(each((f) => f.read()), { position: 500, value: 0.5, raw: 8192 }, 'no positions named: 1001, steps of 0.1 %')
+  same(each((f) => f.read({ positions: 11 })), { position: 5, value: 0.5, raw: 8192 })
+  same(each((f) => f.read({ positions: 2 })), { position: 1, value: 1, raw: 8192 })
+  same(each((f) => f.read({ positions: 'all' })), { position: 8192, value: 8192 / 16383, raw: 8192 })
+
+  const feeds = (options) => each((f) => f.changes(options))
+  const next = (streams) => Promise.all(streams.map(async (feed) => (await feed.next()).value))
+  // At 11 positions one is 1638.3 raw wide: 9339 is 5.7 positions up, 9502 is 5.8, 8847 is 5.4, 8519 is 5.2.
+  const tenths = feeds({ positions: 11 })
+  let coming = next(tenths)
+  move(9339)
+  await listening()
+  move(9502)
+  same(await coming, { position: 6, value: 0.6, raw: 9502 }, 'position 5 is held until three quarters of the way to 6')
+  same(each((f) => f.read({ positions: 11 })), { position: 6, value: 0.6, raw: 9502 })
+  coming = next(tenths)
+  move(8847)
+  await listening()
+  same(each((f) => f.read({ positions: 11 })), { position: 5, value: 0.5, raw: 8847 }, 'a read holds nothing')
+  move(8519)
+  same(await coming, { position: 5, value: 0.5, raw: 8519 }, 'position 6 is held back to a quarter past the border')
+
+  const [switches, fine, all] = [feeds({ positions: 2 }), feeds(), feeds({ positions: 'all' })]
+  move(8532)
+  same(await next(fine), { position: 521, value: 0.521, raw: 8532 }, 'at the default, 16.4 raw a position, 520 gives way 13 raw up')
+  same(await next(all), { position: 8532, value: 8532 / 16383, raw: 8532 }, 'all yields every value')
+  move(4000)
+  same(await next(switches), { position: 0, value: 0, raw: 4000 })
+
+  for (const fader of faders) {
+    for (const positions of [1, 2.5, 16385]) assert.throws(() => fader.changes({ positions }), { name: 'ControllerError', code: 'refused' })
+    assert.throws(() => fader.read({ positions: 0 }), { name: 'ControllerError', code: 'refused' })
+    assert.throws(() => fader.changes({ positions: '10%' }), TypeError)
+  }
+  await close()
+})
+
 // B0 00 / B0 20 TEMPO (MML p.2 D4); B0 22 the top in vinyl mode (D3); B6 40 browse (B1); 90 18 assign B (M11); 94 20, 94 21 the Beat FX selector (p.3 F13).
 test('a fader moved, a jog and an encoder turned and a selector flipped report as the device', async () => {
   const { device, real, virt, hands, close } = await both()
   const value = Math.round(16383 * 0.75)
   hands.move(virt.decks[0].tempo, value)
-  assert.equal(virt.decks[0].tempo.value, value)
+  assert.equal(virt.decks[0].tempo.read().raw, value)
   for (const message of [`B0 00 ${(value >> 7).toString(16)}`, `B0 20 ${(value & 0x7f).toString(16)}`]) device.input.receive(message)
-  assert.equal(real.decks[0].tempo.value, value)
+  assert.equal(real.decks[0].tempo.read().raw, value)
 
   const platter = virt.decks[0].jog.platter
   const quarter = platter.revolution / 4

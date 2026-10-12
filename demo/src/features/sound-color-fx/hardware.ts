@@ -1,5 +1,5 @@
 // Concern: Sound Color FX on the FLX10: the six SOUND COLOR FX buttons and channels 1 and 2's COLOR knobs in; the selected button flashing out | Non-concern: the rules, audio | IO: controls <-> settings
-import type { Pattern } from 'dj-controller'
+import type { Pattern, Reading } from 'dj-controller'
 import { DECKS, type DeckIndex } from '../../shared/decks.ts'
 import type { Flx10 } from '../../shared/flx10.ts'
 import { ledOut, showLights, type Plan } from '../../shared/lights/show-lights.ts'
@@ -30,8 +30,9 @@ export function playColorFx(flx: Flx10, state: Store<ColorFxState>, signal: Abor
   })
   const knob = (deck: DeckIndex) => {
     const control = flx.mixer.channels[deck].color
-    const turned = (value: number) => state.update((s) => ({ ...s, colours: deck === 0 ? [colourOf(value / control.max), s.colours[1]] : [s.colours[0], colourOf(value / control.max)] }))
-    if (control.value !== undefined) turned(control.value)
+    const turned = ({ value }: Reading) => state.update((s) => ({ ...s, colours: deck === 0 ? [colourOf(value), s.colours[1]] : [s.colours[0], colourOf(value)] }))
+    const now = control.read()
+    if (now) turned(now)
     return follow(control.changes({ signal }), turned, signal)
   }
   return [

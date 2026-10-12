@@ -154,11 +154,11 @@ const INTERFACES: [Interface; 13] = [
         name: "Absolute",
         params: "",
         extends: &[],
-        doc: "A fader or knob, 0 to `max`: undefined until the device reports it. A control reads its own layer, its `shifted` view the SHIFT layer, so neither mixes in the other. `changes` yields the latest value: a slow reader gets the newest, never a backlog.",
+        doc: "A fader or knob. The device reports it from 0 to `max`, and each reader says how finely it reads that (`Stepping`), by default in steps of 0.1 %. `read` is where it is now, at the position nearest: undefined until the device reports it. `changes` yields a `Reading` each time the position changes, from its creation on, so read first, then follow; it holds its position against a value resting on a border (`Stepping`), and a slow reader gets the newest, never a backlog. Both throw a `refused` ControllerError for a count the control does not take, a `TypeError` for `positions` neither a number nor `\"all\"`. A control reads its own layer, its `shifted` view the SHIFT layer, so neither mixes in the other.",
         members: &[
-            "readonly value: number | undefined;",
             "readonly max: number;",
-            "changes(options?: Listen): Feed<number>;",
+            "read(options?: Stepping): Reading | undefined;",
+            "changes(options?: Listen & Stepping): Feed<Reading>;",
         ],
     },
     Interface {

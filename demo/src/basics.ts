@@ -118,8 +118,9 @@ async function cue(controls: Flx10Deck, deck: Deck, signal: AbortSignal): Promis
 
 /** From 0 to 1: now, if reported, then the latest at each change. */
 async function fader(control: Absolute, set: (position: number) => void, signal: AbortSignal): Promise<void> {
-  if (control.value !== undefined) set(control.value / control.max)
-  for await (const value of control.changes({ signal })) set(value / control.max)
+  const now = control.read()
+  if (now) set(now.value)
+  for await (const { value } of control.changes({ signal })) set(value)
 }
 
 async function playBasics(flx: Flx10, desk: Desk, signal: AbortSignal): Promise<void> {

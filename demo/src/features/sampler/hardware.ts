@@ -53,9 +53,10 @@ function playDeck(controls: Flx10Deck, deck: number, sampler: Sampler, signal: A
 export function playSampler(controller: Flx10, sampler: Sampler, signal: AbortSignal): Promise<void>[] {
   // MML M20; MAN p.52 item 17.
   const volume = controller.mixer.samplerVolume
-  if (volume.value !== undefined) sampler.volume(volume.value / volume.max)
+  const now = volume.read()
+  if (now) sampler.volume(now.value)
   return [
     ...DECKS.flatMap((deck) => playDeck(controller.decks[deck], deck, sampler, signal)),
-    follow(volume.changes({ signal }), (value) => sampler.volume(value / volume.max), signal),
+    follow(volume.changes({ signal }), ({ value }) => sampler.volume(value), signal),
   ]
 }

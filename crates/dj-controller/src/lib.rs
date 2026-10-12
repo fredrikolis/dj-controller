@@ -171,6 +171,21 @@ export type Press<Id> = Id & { readonly time: Time; readonly released: Promise<T
 export type Hit<Id> = Id & { readonly velocity: number; readonly time: Time; readonly released: Promise<Time> };
 /** The core's `SwitchChange`: what a switch reported, `time` as a `Press`'s. */
 export type SwitchChange = { readonly on: boolean; readonly time: Time };
+/**
+ * How finely a reader reads a fader or knob: `positions`, a whole 2 to `max + 1`, evenly spaced across
+ * its travel with both ends among them, so count positions, not steps: 2 is a switch (the lower half
+ * 0, the upper 1), 3 low, centre, high, 11 steps of 10 %, 101 of 1 %. An odd count has the centre as
+ * a position, which a centre-detent knob wants. `"all"` is every value the device reports, the
+ * `max + 1` of them, each change yielded. Left out: 1001, steps of 0.1 %, or `"all"` where the control
+ * reports fewer.
+ *
+ * A value is at the position nearest it. A `changes` feed then holds its position until the value is
+ * three quarters of the way to the next, a quarter of a step past the border midway, so a knob
+ * resting on a border or a noisy fader yields nothing; with `"all"` nothing is held.
+ */
+export type Stepping = { readonly positions?: number | "all" };
+/** A fader or knob as its reader stepped it: `position` a whole 0 to `positions - 1`; `value` that from 0 to 1, `position / (positions - 1)`, so 0.3 at 11 positions; `raw` the device's own value behind it, a whole 0 to the control's `max`, whatever the stepping. */
+export type Reading = { readonly position: number; readonly value: number; readonly raw: number };
 /** The core's `Position<I>`: every tick the layers a relative control or view reads reported since connect, summed exactly, so 0 is where it was at connect; and its latest tick, undefined before the first. */
 export type Position<Id> = { readonly ticks: number; readonly latest: Tick<Id> | undefined };
 /** The core's `Tick<I>`: a relative control's latest tick, the identity it came with and its `time`, the MIDI event's timeStamp. */

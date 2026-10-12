@@ -12,8 +12,9 @@ import type { Move } from './fader-start.ts'
 import { start } from './start.ts'
 
 function position(control: Absolute, act: (position: number) => void, signal: AbortSignal): Promise<void> {
-  if (control.value !== undefined) act(control.value / control.max)
-  return follow(control.changes({ signal }), (value) => act(value / control.max), signal)
+  const now = control.read()
+  if (now) act(now.value)
+  return follow(control.changes({ signal }), ({ value }) => act(value), signal)
 }
 
 function channel(flx: Flx10, mixer: Mixer, decks: Pair<Deck>, deck: DeckIndex, signal: AbortSignal): Promise<void>[] {
