@@ -224,6 +224,12 @@ test('a model\'s palette reads with no connection, as its controller gives it on
   await flx.close()
 })
 
+test('every colour number a pad can be told has an rgb in the FLX10 palette, so a twin draws it; 0 is off', async () => {
+  const colours = await palette('DDJ-FLX10')
+  for (let n = 1; n <= 127; n++) assert.match(colours.colour(n)?.rgb ?? '', /^#[0-9a-f]{6}$/, `colour ${n}`)
+  assert.equal(colours.colour(0).rgb, undefined)
+})
+
 test('an unread stream keeps the newest 4096 reports and counts the rest; a level keeps only its latest', async () => {
   const { device, flx } = await connected(undefined, diagnostics.connect)
   const turns = inspect(flx).turns(flx.decks[0].jog.platter)
