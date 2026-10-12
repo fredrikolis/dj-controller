@@ -49,17 +49,8 @@ const letterOf = (index: number): string => (index < 26 ? String.fromCharCode(65
 export const SLOTS: readonly Slot[] = PRESETS.map(([effect, timing], i) => ({ letter: letterOf(i), effect, timing }))
 
 /** MAN p.80: mode 1 page 1 pads 1-8 are A-H, page 2 I-P; p.81: mode 2 Q-X, Y-AF. */
-export function slotAt(bank: number, page: number, pad: number): number {
-  if (![0, 1].includes(bank) || ![0, 1].includes(page) || !Number.isInteger(pad) || pad < 0 || pad > 7) {
-    throw new RangeError(`no PAD FX slot for bank ${bank}, page ${page}, pad ${pad}: bank 0 is PAD FX1 and bank 1 SHIFT+PAD FX1, pages 0-1, pads 0-7 (MAN pp.80-81)`)
-  }
-  return bank * 16 + page * 8 + pad
-}
+export const slotAt = (bank: number, page: number, pad: number): number => bank * 16 + page * 8 + pad
 
-export function slotOf(index: number): Slot {
-  const slot = SLOTS[index]
-  if (slot === undefined) throw new RangeError(`no PAD FX slot ${index}: the banks hold slots 0 to ${SLOTS.length - 1}`)
-  return slot
-}
+export const slotOf = (index: number): Slot => SLOTS[index]
 
 export const timingText = (timing: Timing): string => (timing === null ? '' : 'beats' in timing ? beatsText(timing.beats) : `${timing.percent}%`)

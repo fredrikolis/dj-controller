@@ -6,19 +6,14 @@ export const beatSeconds = (bpm: number): number => {
   return 60 / bpm
 }
 
-const depthOf = (depth: number): number => {
-  if (!(depth >= 0 && depth <= 1)) throw new RangeError(`LEVEL/DEPTH runs from 0 to 1, not ${depth}`)
-  return depth
-}
-
 // RB p.183 step 4. ASSUMPTION: a DJM's curve.
-export const balanceOf = (depth: number): { readonly dry: number; readonly wet: number } => ({ dry: Math.min(1, 2 * (1 - depthOf(depth))), wet: Math.min(1, 2 * depthOf(depth)) })
+export const balanceOf = (depth: number): { readonly dry: number; readonly wet: number } => ({ dry: Math.min(1, 2 * (1 - depth)), wet: Math.min(1, 2 * depth) })
 
 // ASSUMPTION: TRANS open half a cycle (MAN p.95), spins 3x, CRUSH 4 bits held 6 (p.100).
 export const transOpen = (beat: number, beats: number, open = 0.5): boolean => (((beat / beats) % 1) + 1) % 1 < open
 
 // MAN p.95. ASSUMPTION: deeper to the middle, longer past it.
-export const transCutOf = (depth: number): { readonly cut: number; readonly open: number } => (depthOf(depth) <= 0.5 ? { cut: 2 * depth, open: 0.5 } : { cut: 1, open: 0.5 - (depth - 0.5) / 2 })
+export const transCutOf = (depth: number): { readonly cut: number; readonly open: number } => (depth <= 0.5 ? { cut: 2 * depth, open: 0.5 } : { cut: 1, open: 0.5 - (depth - 0.5) / 2 })
 
 export function rollOffset(elapsed: number, length: number, reverse: boolean): number {
   if (elapsed < length) return elapsed

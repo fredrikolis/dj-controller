@@ -1,4 +1,4 @@
-// Concern: beat jump as rekordbox plays it: whole beats either way, an active loop moved along, the pads' sizes, search speeds | Non-concern: the controls | IO: (deck, beats, position) -> deck, seek
+// Concern: beat jump as rekordbox plays it: whole beats either way, an active loop moved too, pad sizes, searching | Non-concern: controls | IO: (deck, beats, position) -> deck, seek
 import type { DeckState } from '../../shared/transport/deck-state.ts'
 import type { Grid } from '../../shared/transport/grid.ts'
 import { activeLoop } from '../../shared/transport/loop-state.ts'
@@ -19,9 +19,7 @@ export const PAD_BEATS: readonly (readonly number[])[] = [
 ]
 
 export function padJump(page: number, pad: number): { readonly beats: number; readonly direction: Direction } {
-  const beats = PAD_BEATS[page]?.[Math.floor(pad / 2)]
-  if (beats === undefined || !Number.isInteger(pad) || pad < 0) throw new RangeError(`no beat jump pad ${pad} on page ${page}: the FLX10 has pads 0 to 7 on pages 0 and 1 (MML p.7 *1)`)
-  return { beats, direction: pad % 2 === 0 ? -1 : 1 }
+  return { beats: PAD_BEATS[page][Math.floor(pad / 2)], direction: pad % 2 === 0 ? -1 : 1 }
 }
 
 // MAN pp.19-20. ASSUMPTION: both speeds.
@@ -32,7 +30,7 @@ export const searchFrames = (turns: number, grid: Grid): number => turns * SEARC
 
 const inTrack = (frame: number, grid: Grid): boolean => frame >= 0 && frame < grid.end
 
-// MAN p.82; RB p.245 leaves it unquantized; RB p.135. ASSUMPTION: none leaving the track.
+// MAN p.82; RB p.245: unquantized; RB p.135. ASSUMPTION: none off the track.
 export function jumped<D extends Jumping>(deck: D, position: number, beats: number, direction: Direction, grid: Grid): Step<D> {
   const by = direction * beats * grid.beat
   const to = position + by

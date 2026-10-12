@@ -59,7 +59,6 @@ export const DEFAULTS: Readonly<Record<ParamKind, number>> = { beats: 1, rate: 1
 
 // MAN p.92 item 5.
 export function paramText(kind: ParamKind, value: number): string {
-  if (!LISTS[kind].includes(value)) throw new RangeError(`${value} is not on the ${kind} list of a Beat FX parameter (MAN pp.94-98)`)
   if (kind === 'percent') return `${value}%`
   if (kind === 'signed') return `${value > 0 ? '+' : '-'}${beatsText(Math.abs(value))}`
   return beatsText(value)

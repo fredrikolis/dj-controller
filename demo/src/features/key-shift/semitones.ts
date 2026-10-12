@@ -11,11 +11,7 @@ export const PAD_PITCHES: readonly (readonly number[])[] = [
   [-3, -2, -1, 0, -7, -6, -5, -4],
 ]
 
-export function pitchOf(page: number, pad: number): number {
-  const pitch = PAD_PITCHES[page]?.[pad]
-  if (pitch === undefined) throw new RangeError(`no key shift pitch for page ${page + 1} pad ${pad + 1}: the FLX10 has 2 pages of 8 pads (MML p.7 *1)`)
-  return pitch
-}
+export const pitchOf = (page: number, pad: number): number => PAD_PITCHES[page][pad]
 
 export type Keyed = Pick<DeckState, 'keyShift' | 'keySync'>
 
@@ -44,7 +40,7 @@ export type Chosen = number | null
 
 export type KeyboardStep = { readonly chosen: Chosen; readonly hotCue: number | null; readonly semitones: number | null }
 
-// MAN p.84 step 2, p.85 step 4; ASSUMPTION: a choice since cleared chooses again.
+// MAN p.84 step 2, p.85 step 4. ASSUMPTION: a cleared choice chooses again.
 export const chosenCue = (chosen: Chosen, hotCues: HotCues): Chosen => (chosen !== null && hotCues[chosen] != null ? chosen : null)
 
 export function pressKeyboard(chosen: Chosen, hotCues: HotCues, page: number, pad: number): KeyboardStep {

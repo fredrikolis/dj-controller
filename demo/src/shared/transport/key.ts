@@ -10,11 +10,7 @@ const MINORS = ['Cm', 'Dbm', 'Dm', 'Ebm', 'Em', 'Fm', 'F#m', 'Gm', 'Abm', 'Am', 
 
 const pitchClass = (n: number): number => ((n % 12) + 12) % 12
 
-export function keyName(key: Key): string {
-  const name = (key.minor ? MINORS : MAJORS)[pitchClass(key.tonic)]
-  if (name === undefined) throw new RangeError(`no key name for tonic ${key.tonic}`)
-  return name
-}
+export const keyName = (key: Key): string => (key.minor ? MINORS : MAJORS)[pitchClass(key.tonic)]
 
 export const movedBy = (key: Key, semitones: number): Key => ({ ...key, tonic: pitchClass(key.tonic + semitones) })
 

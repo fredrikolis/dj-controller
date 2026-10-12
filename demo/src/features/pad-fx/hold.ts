@@ -15,7 +15,6 @@ const effectOf = (held: Held): Effect => slotOf(held.slot).effect
 
 // MAN p.81 steps 2-3; RB p.189.
 export function pressed(holding: Holding, id: number, slot: number): Holding {
-  if (holding.some((h) => h.id === id)) throw new Error(`PAD FX press ${id} is already held; each press is let go before its id comes again`)
   const { effect, timing } = slotOf(slot)
   const release = RELEASE_FX.has(effect)
   // ASSUMPTION: a press turned off stays off while held.
@@ -28,7 +27,6 @@ export const letGo = (holding: Holding, id: number): Holding => (holding.some((h
 function step(timing: Timing, direction: -1 | 1): Timing {
   if (timing === null || !('beats' in timing)) return timing
   const at = BEATS.indexOf(timing.beats)
-  if (at < 0) throw new RangeError(`${timing.beats} beats is not on the Beat FX list (MAN p.94)`)
   return { beats: BEATS[Math.min(BEATS.length - 1, Math.max(0, at + direction))] }
 }
 

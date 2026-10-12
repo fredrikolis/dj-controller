@@ -50,7 +50,6 @@ export const toggled = (s: BeatFxState): BeatFxState => ({ ...s, on: !s.on })
 export function stepped(s: BeatFxState, direction: -1 | 1): BeatFxState {
   const list = LISTS[KINDS[s.effect]]
   const at = list.indexOf(s.params[s.effect])
-  if (at < 0) throw new RangeError(`${NAMES[s.effect]} holds ${s.params[s.effect]}, which is not on its list`)
   const value = list[Math.min(list.length - 1, Math.max(0, at + direction))]
   return value === s.params[s.effect] ? s : { ...s, params: { ...s.params, [s.effect]: value } }
 }

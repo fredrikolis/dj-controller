@@ -4,7 +4,7 @@ export type PlayMode = 'oneshot' | 'loop' | 'gate'
 
 export type Kind = 'drum' | 'stab' | 'fx' | 'loop'
 
-/** `node` names its SVA file in demo/samples; a loop repeats `bars` bars of the sampler deck's BPM. */
+/** `node` names its SVA file in demo/samples; a loop repeats `bars` bars of the sampler's BPM. */
 export type Slot = { readonly name: string; readonly node: string; readonly mode: PlayMode; readonly kind: Kind; readonly bars: number | null }
 
 // RB p.194 step 2: four banks of 16 slots.
@@ -38,22 +38,9 @@ const LOOPS: readonly Slot[] = [
 
 const SAMPLER_BANKS: readonly (readonly (Slot | null)[])[] = [DRUMS, STABS_AND_FX, LOOPS, Array.from({ length: POSITIONS }, () => null)]
 
-/** Every loaded slot, bank by bank. */
 export const SLOTS: readonly Slot[] = SAMPLER_BANKS.flat().filter((slot) => slot !== null)
 
-const check = (value: number, count: number, what: string, source: string): void => {
-  if (!Number.isInteger(value) || value < 0 || value >= count) throw new RangeError(`no sampler ${what} ${value}: there are ${what}s 0 to ${count - 1} (${source})`)
-}
+export const slotAt = (bank: number, position: number): Slot | null => SAMPLER_BANKS[bank][position]
 
-export function slotAt(bank: number, position: number): Slot | null {
-  check(bank, BANKS, 'bank', 'RB p.194')
-  check(position, POSITIONS, 'position', 'RB p.194')
-  return SAMPLER_BANKS[bank][position]
-}
-
-// MAN p.84: deck 1's pads play slots 1-8, deck 2's slots 9-16.
-export function positionOf(deck: number, pad: number): number {
-  check(deck, 2, 'deck', 'MAN p.84 names decks 1 and 2')
-  check(pad, PADS, 'pad', 'MAN p.84')
-  return deck * PADS + pad
-}
+// MAN p.84: deck 1's pads play slots 1-8, deck 2's 9-16.
+export const positionOf = (deck: number, pad: number): number => deck * PADS + pad

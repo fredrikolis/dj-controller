@@ -36,7 +36,6 @@ export const NONE: Settings = { ...OPEN, resonant: false, crush: 0, pitch: 1, no
 
 // MAN pp.99-101. ASSUMPTION: how far each goes.
 export function settingsOf(effect: ColorFx | null, colour: number): Settings {
-  if (!(colour >= -1 && colour <= 1)) throw new RangeError(`a COLOR turn runs from -1 to 1, not ${colour}`)
   const amount = Math.abs(colour)
   if (effect === null || amount === 0) return NONE
   const up = colour > 0

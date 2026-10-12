@@ -1,4 +1,4 @@
-// Concern: the sampler's BPM, a loop's render BPM, rate and quantized start, GAIN and volume as gains | Non-concern: playing, which deck is the master | IO: (sampler, master deck) -> numbers
+// Concern: the sampler's BPM, a loop's render BPM, rate and quantized start, GAIN and volume as gains | Non-concern: playing | IO: (sampler, master deck) -> numbers
 import { faderGain } from '../mixer/curves.ts'
 import type { SamplerState } from './sampler-state.ts'
 
@@ -13,10 +13,7 @@ export const bpmOf = (s: Pick<SamplerState, 'bpm' | 'sync'>, master: DeckClock):
 
 export const renderBpmOf = (bpm: number): number => clamp(bpm, RENDER_RANGE)
 
-export function rateOf(bpm: number, rendered: number): number {
-  if (!(rendered > 0)) throw new RangeError(`a loop rendered at ${rendered} BPM has no rate: renders are made from ${RENDER_RANGE[0]} to ${RENDER_RANGE[1]} BPM`)
-  return Math.max(0, bpm) / rendered
-}
+export const rateOf = (bpm: number, rendered: number): number => Math.max(0, bpm) / rendered
 
 // RB p.195: Q for Loop slots; p.245: at once, the beat kept.
 export function loopOffset(s: Pick<SamplerState, 'quantize'>, master: DeckClock, rendered: number): number {
