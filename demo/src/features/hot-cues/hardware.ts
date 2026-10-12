@@ -6,7 +6,7 @@ import { follow } from '../../shared/streams.ts'
 import type { Deck } from '../../shared/transport/deck.ts'
 import { pad, shiftPad } from '../../shared/hot-cues/actions.ts'
 import { slotOf } from '../../shared/hot-cues/hot-cue.ts'
-import { padLightsOf, planOf } from '../../shared/hot-cues/lights.ts'
+import { planOf } from '../../shared/hot-cues/lights.ts'
 
 const hotCuePage = (controls: Flx10Deck): number | null => (controls.mode.mode === 'hotCue' ? (controls.mode.page ?? null) : null)
 
@@ -19,7 +19,7 @@ function keepLights(controls: Flx10Deck, deck: Deck, signal: AbortSignal): Promi
   deck.state.watch(bump, signal)
   return [
     follow(controls.modeChanges({ signal }), bump, signal),
-    follow(changes(seen, signal), () => show(planOf(views, padLightsOf(deck.state.state), hotCuePage(controls))), signal),
+    follow(changes(seen, signal), () => show(planOf(views, deck.state.state, hotCuePage(controls))), signal),
   ]
 }
 
