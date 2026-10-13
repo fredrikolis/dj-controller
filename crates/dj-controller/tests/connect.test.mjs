@@ -558,6 +558,32 @@ test('a number is written whole and in range or refused, never wrapped or cut; a
   await flx.close()
 })
 
+test('each Beat FX display field is written as the one SysEx rekordbox sent for it, and a text or BPM it does not take sends nothing', async () => {
+  const { device, flx } = await connected()
+  const { name, beat, bpm } = flx.beatFxDisplay
+  const before = device.output.sent.length
+  await name.set('TRANS')
+  await beat.set('1')
+  await bpm.set(120)
+  // LOU-INIT frames 71 to 73, the model file's handshake step.
+  assert.deepEqual(device.output.sent.slice(before), [
+    `F0 00 40 05 00 00 04 01 00 00 0A 00 28 00 26 00 28 49 0A 64 69 14${' 00'.repeat(31)} F7`,
+    'F0 00 40 05 00 00 04 01 00 00 0B 31 00 00 00 00 00 F7',
+    'F0 00 40 05 00 00 04 01 00 00 0C 00 00 02 0E 0E 00 00 00 F7',
+  ])
+  assert.deepEqual([name.length, beat.length, bpm.range], [32, 5, [0, 655.35]])
+  await rejectsWith(name.set('Trans'), 'refused')
+  await rejectsWith(name.set(''), 'refused')
+  await rejectsWith(beat.set('+1/128'), 'refused')
+  await rejectsWith(beat.set(`1${[...'ABC'].find((c) => !beat.characters.includes(c))}`), 'refused')
+  await rejectsWith(bpm.set(120.005), 'refused')
+  await rejectsWith(bpm.set(655.36), 'refused')
+  await assert.rejects(name.set(1), TypeError)
+  assert.equal(device.output.sent.length, before + 3)
+  await flx.close()
+  await rejectsWith(name.set('TRANS'), 'closed')
+})
+
 test('unplugging ends every stream, rejects pending waits, settles closed and drops the listeners', async () => {
   const { device, flx, clock } = await connected()
   const presses = flx.decks[0].playPause.presses()

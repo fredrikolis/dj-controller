@@ -5,6 +5,7 @@ export type * from './dj_controller.js'
 
 export type {
   Absolute,
+  BeatFxDisplay,
   Button,
   Clock,
   CloseReason,
@@ -14,6 +15,8 @@ export type {
   Controller,
   ControllerError,
   Controllers,
+  DisplayBpm,
+  DisplayText,
   Feed,
   Hit,
   Lease,

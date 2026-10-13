@@ -8,6 +8,7 @@ use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
+use crate::beat_fx::BeatFxDisplay;
 use crate::midi::Message;
 use crate::steps::Interface;
 
@@ -291,6 +292,8 @@ struct File {
     #[serde(rename = "state-request")]
     state_request: Option<StateRequest>,
     hid: Option<Interface>,
+    #[serde(rename = "beat-fx-display")]
+    beat_fx_display: Option<BeatFxDisplay>,
     palette: Option<Palette>,
     #[serde(rename = "start-bank")]
     start_bank: Option<StartBank>,
@@ -515,6 +518,8 @@ pub struct Model {
     pub state_request: Option<StateRequest>,
     /// The vendor HID interface and its setup steps, where the sources describe one.
     pub hid: Option<Interface>,
+    /// The SysEx writing the effects section's display, where captures show them.
+    pub beat_fx_display: Option<BeatFxDisplay>,
     pub palette: Option<Palette>,
     pub start_bank: Option<StartBank>,
     pub virtual_unit: Option<VirtualUnit>,
@@ -554,6 +559,7 @@ impl Model {
             sources: file.sources,
             state_request: file.state_request,
             hid: file.hid,
+            beat_fx_display: file.beat_fx_display,
             palette: file.palette,
             start_bank: file.start_bank,
             virtual_unit: None,
@@ -563,6 +569,7 @@ impl Model {
             names: HashMap::new(),
         };
         model.palette.as_ref().map_or(Ok(()), Palette::check).map_err(at)?;
+        model.beat_fx_display.as_ref().map_or(Ok(()), BeatFxDisplay::check).map_err(at)?;
         for (i, c) in model.controls.iter().enumerate() {
             c.check().map_err(|e| at(format!("{}: {e}", c.name())))?;
             if model.names.insert((c.control.clone(), c.layer.clone()), i).is_some() {

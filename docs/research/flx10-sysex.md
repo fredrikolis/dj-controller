@@ -19,9 +19,9 @@ https://github.com/mixxxdj/mixxx/blob/main/res/controllers/Pioneer-DDJ-400-scrip
 | `F0 00 40 05 00 00 04 01 00 50 00 F7` | rekordbox, every ~200 ms all session | keepalive / "host present" | VZ-F table; LOU-RB3 (281 times in one capture) |
 | `F0 00 40 05 00 00 04 01 00 50 31 F7` | Serato, every ~250 ms | Serato-flavour keepalive | VZ-F |
 | `F0 00 40 05 00 00 04 01 00 03 01 F7` | VirtualDJ and Serato once; LOU-RB3 also sees rekordbox send it twice | On the DDJ-400 the same opcode is commented "query the controller for current control positions on startup" (Mixxx DDJ-400 script l.201–202). LOU-JS calls it `_SYSEX_ENTER_HID`. Observed 2026-10-08: sent alone, it made this unit report every control's position ([flx10-observed.md](flx10-observed.md)); whether it also does anything for HID is unverified | VZ-F, LOU-RB3, LOU-JS l.907 |
-| `F0 00 40 05 00 00 04 01 00 00 0B 31 00 00 00 00 00 F7` | rekordbox and Serato, at connect and track load | "init/config A" | LOU-RB3, VZ-F; bytes as LOU-INIT holds them |
-| `F0 00 40 05 00 00 04 01 00 00 0C 00 00 02 0E 0E 00 00 00 F7` (variants) | rekordbox and Serato, at connect and track load | "init/config B" | LOU-RB3, VZ-R; bytes as LOU-INIT |
-| `F0 00 40 05 00 00 04 01 00 00 0A 00 28 00 26 00 28 49 0A 64 69 14`, 31 × `00`, `F7` (54 bytes) | rekordbox | "display/state blob" | LOU-RB3, LOU-JS l.928; bytes as LOU-INIT |
+| `F0 00 40 05 00 00 04 01 00 00 0B 31 00 00 00 00 00 F7` | rekordbox and Serato, at connect and track load | the Beat FX display's beat text, "1" ([flx10-beat-fx-display.md](flx10-beat-fx-display.md)); "init/config A" to its sources | LOU-RB3, VZ-F; bytes as LOU-INIT holds them |
+| `F0 00 40 05 00 00 04 01 00 00 0C 00 00 02 0E 0E 00 00 00 F7` (variants) | rekordbox and Serato, at connect and track load | the Beat FX display's BPM, 120.00; "init/config B" to its sources | LOU-RB3, VZ-R; bytes as LOU-INIT |
+| `F0 00 40 05 00 00 04 01 00 00 0A 00 28 00 26 00 28 49 0A 64 69 14`, 31 × `00`, `F7` (54 bytes) | rekordbox | the Beat FX display's effect name, "TRANS"; "display/state blob" to its sources | LOU-RB3, LOU-JS l.928; bytes as LOU-INIT |
 | `F0 00 40 05 00 00 04 01 00 1x 0F 0F 0F 0F 0F 0F F7`, x = 1..4 | rekordbox (Serato: `… 00 1x 00 00 02 0E 0E 05`) | per-deck init | LOU-RB3, VZ-R |
 | `F0 00 20 7F 01 02 01 01 22 0F 0C …` | Serato once | Serato app identification | VZ-F |
 

@@ -8,7 +8,8 @@ use std::rc::Rc;
 use std::task::{Poll, Waker};
 
 use dj_controller_core::controls::{
-    Absolute, ColourOut, ColourPad, Identity, LedButton, LedOut, Pad, Play, Relative, Shown, Switch, Telling, ValueOut,
+    Absolute, BeatFxDisplay, ColourOut, ColourPad, Identity, LedButton, LedOut, Pad, Play, Relative, Shown, Switch,
+    Telling, ValueOut,
 };
 use dj_controller_core::controls::{Button, Hit, Press, Released};
 use dj_controller_core::error::Error;
@@ -719,6 +720,77 @@ impl AsJs for ValueOut {
             labels: self.labels().to_vec(),
         }
         .into()
+    }
+}
+
+/// A text field of the Beat FX display, with what its model file says it carries.
+#[wasm_bindgen(skip_typescript)]
+pub struct DisplayText {
+    set: Setter,
+    length: usize,
+    characters: String,
+}
+
+#[wasm_bindgen]
+impl DisplayText {
+    pub fn set(&self, text: JsValue) -> Promise {
+        (self.set)(text)
+    }
+    #[wasm_bindgen(getter)]
+    pub fn length(&self) -> usize {
+        self.length
+    }
+    #[wasm_bindgen(getter)]
+    pub fn characters(&self) -> String {
+        self.characters.clone()
+    }
+}
+
+/// The Beat FX display's BPM, with its model file's range.
+#[wasm_bindgen(skip_typescript)]
+pub struct DisplayBpm {
+    set: Setter,
+    range: [f64; 2],
+}
+
+#[wasm_bindgen]
+impl DisplayBpm {
+    pub fn set(&self, bpm: JsValue) -> Promise {
+        (self.set)(bpm)
+    }
+    #[wasm_bindgen(getter)]
+    pub fn range(&self) -> JsValue {
+        to_js(&self.range)
+    }
+}
+
+impl AsJs for BeatFxDisplay {
+    fn as_js(&self) -> JsValue {
+        let fields = self.fields();
+        let (name, beat, bpm) = (self.clone(), self.clone(), self.clone());
+        let name = setter(JsValue::as_string, move |text: String| {
+            let this = name.clone();
+            async move { this.name(&text).await }
+        });
+        let beat = setter(JsValue::as_string, move |text: String| {
+            let this = beat.clone();
+            async move { this.beat(&text).await }
+        });
+        let bpm = setter(JsValue::as_f64, move |value| {
+            let this = bpm.clone();
+            async move { this.bpm(value).await }
+        });
+        let text = |set, field: &dj_controller_core::beat_fx::Text| {
+            JsValue::from(DisplayText { set, length: field.length, characters: field.characters.clone() })
+        };
+        group(
+            vec![
+                ("name", text(name, &fields.name)),
+                ("beat", text(beat, &fields.beat)),
+                ("bpm", DisplayBpm { set: bpm, range: fields.bpm_range() }.into()),
+            ],
+            None,
+        )
     }
 }
 

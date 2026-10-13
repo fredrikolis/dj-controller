@@ -1,7 +1,7 @@
 // Concern: the protocol core every transport shares, with no I/O | Non-concern: opening a port or device (dj-controller, dj-controller-cli) | IO: none
 //! A model is a data file naming each of its messages by the physical control that sends it.
 
-pub use dj_controller_model::{midi, model, surface};
+pub use dj_controller_model::{beat_fx, midi, model, surface};
 
 pub mod capture;
 pub mod controls;

@@ -607,9 +607,13 @@ pub fn typescript(model: &'static Model) -> String {
     for TsGroup { name, body } in &named {
         writeln!(w, "export type {p}{name} = {};", body.text()).unwrap();
     }
+    let display = match model.beat_fx_display {
+        Some(_) => " & { readonly beatFxDisplay: BeatFxDisplay }",
+        None => "",
+    };
     writeln!(
         w,
-        "/** The {}, connected: its controls by physical identity. */\nexport type {p} = Controller<{:?}> & {root};",
+        "/** The {}, connected: its controls by physical identity. */\nexport type {p} = Controller<{:?}> & {root}{display};",
         model.name, model.name
     )
     .unwrap();
@@ -718,7 +722,13 @@ pub fn wasm(model: &'static Model) -> String {
         writeln!(w, "impl AsJs for djc::models::{m}::{name} {{\n    fn as_js(&self) -> JsValue {{\n        group({}, {})\n    }}\n}}\n", members(fields, "self"), moded(owner, "self", name)).unwrap();
     }
     let Struct { name, fields, owner } = root;
-    writeln!(w, "/// The {} as the object `connect` resolves to: its tree, then `lifecycle`.\npub fn {m}(session: &djc::session::Session, lifecycle: Vec<(&'static str, JsValue)>) -> JsValue {{\n    let root = djc::models::{m}::{name}::new(session);\n    let mut members: Vec<(&str, JsValue)> = {};\n    members.extend(lifecycle);\n    group(members, {})\n}}\n", model.name, members(fields, "root"), moded(owner, "root", name)).unwrap();
+    let display = match model.beat_fx_display {
+        Some(_) => {
+            "    members.push((\"beatFxDisplay\", djc::controls::BeatFxDisplay::of(session).expect(\"its model file states one\").as_js()));\n"
+        }
+        None => "",
+    };
+    writeln!(w, "/// The {} as the object `connect` resolves to: its tree, then `lifecycle`.\npub fn {m}(session: &djc::session::Session, lifecycle: Vec<(&'static str, JsValue)>) -> JsValue {{\n    let root = djc::models::{m}::{name}::new(session);\n    let mut members: Vec<(&str, JsValue)> = {};\n{}    members.extend(lifecycle);\n    group(members, {})\n}}\n", model.name, members(fields, "root"), display, moded(owner, "root", name)).unwrap();
     out
 }
 

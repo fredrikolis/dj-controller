@@ -111,11 +111,49 @@ export interface VirtualGestures {
 export type Virtual<C extends Controller> = C & { readonly virtual: VirtualGestures };
 
 /**
- * The Beat FX display's text, in the shape the unit's SysEx carries it: `name` up to 32 printable
- * ASCII characters, `beat` the beat or parameter text, up to 5, `bpm` from 0 to under 1000, shown to
- * a tenth, undefined for none, `tap` whether that BPM is tapped, AUTO otherwise. The channel is the
- * unit's own: the twin draws it from the Beat FX channel selector. The twin alone shows it; nothing
- * is sent to a device.
+ * A text field of the Beat FX display: `set` sends its SysEx, encoded as rekordbox's was captured,
+ * and resolves once sent. It rejects with a `refused` ControllerError, nothing sent, for an empty
+ * text, one over `length` characters, or a character outside `characters`: those a capture or the
+ * manual shows on the display, as the model file's `beat-fx-display` lists them with their sources.
+ */
+export interface DisplayText {
+  readonly length: number;
+  readonly characters: string;
+  set(text: string): Promise<void>;
+}
+
+/** The Beat FX display's BPM: `set` takes a BPM of whole hundredths within `range`, any other refused. */
+export interface DisplayBpm {
+  readonly range: readonly [number, number];
+  set(bpm: number): Promise<void>;
+}
+
+/**
+ * The effects section's display as a host writes it: the effect's `name`, the `beat` or parameter
+ * text, the `bpm`. The unit draws this display itself and reports neither its beat nor what it
+ * shows, so a host's own Beat FX state is on the unit only once written here: write a field each
+ * time it changes.
+ *
+ * UNVERIFIED ON HARDWARE. The bytes are those rekordbox sent at connect, decoded from captures
+ * (TRANS, 1, 120.00) and checked against them; no capture shows a unit's display. This driver has
+ * never seen a unit draw any of them: whether it draws a host's name at all outside a rekordbox
+ * session (rekordbox sends a keepalive every 200 ms, this driver none), whether its own BEAT
+ * buttons then redraw the beat, and whether the BPM shown is this one or the selected channel's
+ * deck's are all open (docs/research/flx10-beat-fx-display.md). Nothing is read back: there is no
+ * `told`. The display's AUTO/TAP and channel have no known message.
+ */
+export interface BeatFxDisplay {
+  readonly name: DisplayText;
+  readonly beat: DisplayText;
+  readonly bpm: DisplayBpm;
+}
+
+/**
+ * The Beat FX display's text on the twin: `name` up to 32 printable ASCII characters, `beat` the
+ * beat or parameter text, up to 5, `bpm` from 0 to under 1000, shown to a tenth, undefined for
+ * none, `tap` whether that BPM is tapped, AUTO otherwise. The channel is the unit's own: the twin
+ * draws it from the Beat FX channel selector. The twin alone shows it; nothing is sent to a
+ * device, which a controller's `beatFxDisplay` writes.
  */
 export type BeatFxText = { readonly name: string; readonly beat: string; readonly bpm: number | undefined; readonly tap: boolean };
 

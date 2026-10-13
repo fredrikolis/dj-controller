@@ -549,6 +549,36 @@ impl ValueOut {
     }
 }
 
+/// The effects section's display as a host writes it. No unit has been seen drawing a write.
+#[derive(Clone)]
+pub struct BeatFxDisplay {
+    session: Session,
+    display: &'static crate::beat_fx::BeatFxDisplay,
+}
+
+impl BeatFxDisplay {
+    pub fn of(session: &Session) -> Option<BeatFxDisplay> {
+        let display = session.model().beat_fx_display.as_ref()?;
+        Some(BeatFxDisplay { session: session.clone(), display })
+    }
+
+    pub async fn name(&self, text: &str) -> Result<(), Error> {
+        self.session.show_beat_fx(|display| display.name(text))
+    }
+
+    pub async fn beat(&self, text: &str) -> Result<(), Error> {
+        self.session.show_beat_fx(|display| display.beat(text))
+    }
+
+    pub async fn bpm(&self, bpm: f64) -> Result<(), Error> {
+        self.session.show_beat_fx(|display| display.bpm(bpm))
+    }
+
+    pub fn fields(&self) -> &'static crate::beat_fx::BeatFxDisplay {
+        self.display
+    }
+}
+
 /// What an owner of pad modes shows: its pad mode and page where the device has told them, and shift.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]

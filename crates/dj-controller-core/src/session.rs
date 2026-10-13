@@ -11,6 +11,7 @@ use std::task::{Context, Poll, Waker};
 use futures_core::Stream;
 use serde::Serialize;
 
+use crate::beat_fx::{BeatFxDisplay, Refusal};
 use crate::decode::{Decoder, Event, Value};
 use crate::error::{CloseReason, Error};
 use crate::hid::Via as StepVia;
@@ -686,6 +687,17 @@ impl Session {
         Ok(())
     }
 
+    /// Sends the one message `write` encodes for the model's Beat FX display: refused where the
+    /// model file states none, or `write` refuses. One whole message a send, as a SysEx cut short
+    /// leaves a unit's parser open (docs/research/flx10-beat-fx-display.md).
+    pub fn show_beat_fx(&self, write: impl FnOnce(&BeatFxDisplay) -> Result<Message, Refusal>) -> Result<(), Error> {
+        let Some(display) = &self.0.model.beat_fx_display else {
+            return Err(Error::Refused(format!("{} has no Beat FX display a host writes", self.0.model.name)));
+        };
+        let message = write(display).map_err(|e| Error::Refused(e.to_string()))?;
+        self.send(&message.encode().expect("a Beat FX display message is data bytes alone"), None)
+    }
+
     /// Sends what shows `output`, named as its model file names it.
     pub fn show(&self, output: Output) -> Result<(), Error> {
         self.send(&output.bytes().map_err(|e| Error::Refused(e.to_string()))?, None)?;
@@ -803,6 +815,7 @@ impl Core {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::capture::{self, Payload};
     use futures_lite::{StreamExt, future};
 
     struct Silent;
@@ -817,6 +830,41 @@ mod tests {
         fn sleep(&self, _: f64) -> Pin<Box<dyn Future<Output = ()>>> {
             Box::pin(future::ready(()))
         }
+    }
+
+    /// Keeps what it is sent.
+    struct Recording(Rc<RefCell<Vec<Vec<u8>>>>);
+
+    impl Link for Recording {
+        fn send(&self, bytes: &[u8], _: Option<f64>) -> Result<(), String> {
+            self.0.borrow_mut().push(bytes.to_vec());
+            Ok(())
+        }
+        fn now(&self) -> f64 {
+            0.0
+        }
+        fn sleep(&self, _: f64) -> Pin<Box<dyn Future<Output = ()>>> {
+            Box::pin(future::ready(()))
+        }
+    }
+
+    #[test]
+    fn the_beat_fx_display_is_sent_the_messages_rekordbox_sent_it_at_connect_and_nothing_for_a_refused_write() {
+        let flx10 = Model::named("DDJ-FLX10").unwrap();
+        let captured = capture::parse(flx10, include_str!("../fixtures/ddj-flx10-rekordbox-connect.json")).unwrap();
+        let frame = |index: usize| match &captured[index].payload {
+            Payload::Midi(messages) => messages[0].encode().unwrap(),
+            Payload::Report(_) => unreachable!("frame {index} is MIDI"),
+        };
+        let sent = Rc::new(RefCell::new(Vec::new()));
+        let session = Session::new(flx10, Recording(sent.clone()));
+        session.show_beat_fx(|display| display.name("TRANS")).unwrap();
+        session.show_beat_fx(|display| display.beat("1")).unwrap();
+        session.show_beat_fx(|display| display.bpm(120.0)).unwrap();
+        assert_eq!(*sent.borrow(), [frame(71), frame(72), frame(73)]);
+        let refused = session.show_beat_fx(|display| display.name("trans")).unwrap_err();
+        assert_eq!(refused.code(), crate::error::Code::Refused);
+        assert_eq!(sent.borrow().len(), 3);
     }
 
     #[test]

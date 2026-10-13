@@ -1,6 +1,7 @@
 // Concern: every model as its data file states it, checked, with the MIDI it is written in and its surface | Non-concern: decoding, state, sending (dj-controller-core) | IO: (models/*) -> Model, Surface
 //! A model is data alone: adding one needs only its file under models/ (docs/research/model-format.md).
 
+pub mod beat_fx;
 #[cfg(any(feature = "generate", test))]
 pub mod generate;
 pub mod midi;
