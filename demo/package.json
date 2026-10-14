@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@scalable-vector-audio/sva-wasm": "0.8.1",
-    "dj-controller": "0.6.0"
+    "dj-controller": "0.7.0"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
