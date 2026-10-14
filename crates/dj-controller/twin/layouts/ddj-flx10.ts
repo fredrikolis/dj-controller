@@ -1,7 +1,7 @@
 // Concern: the DDJ-FLX10's twin layout: every part on its panel with the typed controls it shows | Non-concern: drawing (draw.ts), following (follow.ts) | IO: (controller) -> Layout
 // Positions read off the top panel drawing in AlphaTheta's DDJ-FLX10 Operating Instructions, “Part names and functions”, pp. 10, 11, 14, 50, 54; proportions approximate. Both browse sections are drawn with the one rotate, BACK and VIEW the MIDI list has (MML p.1 B1 to B3); its press names the deck, as `decks` filters it.
-import type { Button, DdjFlx10, DdjFlx10ChannelIndex, DdjFlx10DeckIndex } from '../../index.js'
-import type { Entry, Id, JogScreen, Layout } from '../types.js'
+import type { Button, DdjFlx10, DdjFlx10ChannelIndex, DdjFlx10DeckIndex, DdjFlx10Section } from '../../index.js'
+import type { Entry, Id, JogScreen, Layout, Section } from '../types.js'
 
 type Deck = DdjFlx10['decks'][number]
 
@@ -19,12 +19,14 @@ function screen(deck: Deck, index: DdjFlx10DeckIndex): JogScreen {
   return { id: JOGS[index], deck: String(index + 1), bpm: d.bpm, speed: d.playingSpeed, minutes: d.time.minutes, seconds: d.time.seconds, remaining: d.timeMode, key: d.key, keyChange: d.keyChange, masterTempo: d.masterTempo, master: d.beatSync.master, sync: d.beatSync.sync, marker: d.digitalMarker, cue: d.cuePoint, hidden: d.hideInfo }
 }
 
-/** A deck's parts, each showing whichever of `decks` is in control; `l` and `r` the decks its in-control lights name, `ln` and `rn` their numbers on the panel. */
-function deck(flx: DdjFlx10, decks: readonly DdjFlx10DeckIndex[], l: DdjFlx10DeckIndex, r: DdjFlx10DeckIndex, ln: string, rn: string, select: Button<Id>): Entry[] {
+type Side = 'deck 1/3' | 'deck 2/4'
+
+/** A deck side's sections but its browser, each part showing whichever of `decks` is in control; `l` and `r` the decks its in-control lights name, `ln` and `rn` their numbers on the panel. */
+function deck(flx: DdjFlx10, side: Side, at: readonly [number, number], decks: readonly DdjFlx10DeckIndex[], l: DdjFlx10DeckIndex, r: DdjFlx10DeckIndex, ln: string, rn: string, select: Button<Id>): Section[] {
   const each = <C>(pick: (deck: Deck) => C) => decks.map((i) => ({ control: pick(flx.decks[i]), inControl: flx.decks[i].inControl }))
   // One physical control moved with SHIFT held reports on its shifted view (MML p.2 D3, D4).
   const both = <C>(pick: (deck: Deck | Deck['shifted']) => C) => decks.map((i) => ({ control: pick(flx.decks[i]), shifted: pick(flx.decks[i].shifted), inControl: flx.decks[i].inControl }))
-  return [
+  const top: Entry[] = [
     { shape: 'button', at: [55, 64], size: [46, 16], label: 'DRUMS', controls: each((d) => d.activePart.drums) },
     { shape: 'button', at: [117, 64], size: [46, 16], label: 'VOCAL', controls: each((d) => d.activePart.vocal) },
     { shape: 'button', at: [179, 64], size: [46, 16], label: 'INST', controls: each((d) => d.activePart.inst) },
@@ -40,6 +42,8 @@ function deck(flx: DdjFlx10, decks: readonly DdjFlx10DeckIndex[], l: DdjFlx10Dec
     { shape: 'button', at: [527, 196], size: [38, 16], label: 'QUANTIZE', controls: each((d) => d.quantize) },
     { shape: 'button', at: [574, 196], size: [34, 16], label: 'SLIP', controls: each((d) => d.slip) },
     { shape: 'round', at: [55, 271], size: 18, label: `${ln}/${rn}`, name: 'select', controls: [{ control: select }] },
+  ]
+  const jog: Entry[] = [
     { shape: 'passive', at: [567, 271], size: 16, label: 'JOG FEEL' },
     // A hand's lap of the side: 1,081 ticks, the one measured (docs/research/flx10-observed-jog.md, 2026-10-10); the model states none, as the count depends on speed.
     { shape: 'spin', at: [312, 437], size: 248, name: 'jog side', ticks: 1081, controls: both((d) => d.jog.side) },
@@ -49,11 +53,15 @@ function deck(flx: DdjFlx10, decks: readonly DdjFlx10DeckIndex[], l: DdjFlx10Dec
     { shape: 'jog', at: [312, 437], size: 97, name: 'jog display', controls: each((d) => d.jog.ring), screens: decks.map((i) => screen(flx.decks[i], i)) },
     { shape: 'position', at: [265, 381], size: 9, label: ln, controls: [{ control: flx.decks[l].inControl }] },
     { shape: 'position', at: [358, 381], size: 9, label: rn, controls: [{ control: flx.decks[r].inControl }] },
+  ]
+  const transport: Entry[] = [
     { shape: 'button', at: [62, 617], size: [32, 14], label: 'SHIFT', latches: true, controls: each((d) => d.shift) },
     { shape: 'button', at: [66, 683], size: [32, 26], label: '◀', name: '4 beat jump left', controls: each((d) => d['4BeatJump'].left) },
     { shape: 'button', at: [106, 683], size: [32, 26], label: '▶', name: '4 beat jump right', controls: each((d) => d['4BeatJump'].right) },
     { shape: 'round', at: [86, 770], size: 40, label: 'CUE', controls: each((d) => d.cue) },
     { shape: 'round', at: [86, 882], size: 40, label: '▶/❚❚', name: 'play pause', controls: each((d) => d.playPause) },
+  ]
+  const pads: Entry[] = [
     { shape: 'button', at: [183, 742], size: [46, 16], label: 'HOT CUE', controls: each((d) => d.padMode.hotCue) },
     { shape: 'button', at: [243, 742], size: [46, 16], label: 'PAD FX1', controls: each((d) => d.padMode.padFx1) },
     { shape: 'button', at: [303, 742], size: [46, 16], label: 'BEAT JUMP', controls: each((d) => d.padMode.beatJump) },
@@ -68,12 +76,16 @@ function deck(flx: DdjFlx10, decks: readonly DdjFlx10DeckIndex[], l: DdjFlx10Dec
     { shape: 'pad', at: [274, 890], size: [66, 66], name: 'pad 6', controls: each((d) => d.pads[5]) },
     { shape: 'pad', at: [352, 890], size: [66, 66], name: 'pad 7', controls: each((d) => d.pads[6]) },
     { shape: 'pad', at: [430, 890], size: [66, 66], name: 'pad 8', controls: each((d) => d.pads[7]) },
+  ]
+  const tempo: Entry[] = [
     { shape: 'button', at: [501, 700], size: [32, 26], label: 'BEAT SYNC', controls: each((d) => d.beatSync) },
     { shape: 'round', at: [501, 776], size: 12, name: 'tempo reset', controls: each((d) => d.tempoReset) },
     { shape: 'button', at: [501, 852], size: [32, 26], label: 'KEY SYNC', controls: each((d) => d.keySync) },
     // The value rises toward the player, down the panel (owner, 2026-10-10, docs/research/flx10-observed-tempo.md).
     { shape: 'fader', at: [557, 770], size: [26, 270], label: 'TEMPO', reversed: true, controls: both((d) => d.tempo) },
   ]
+  const section = (part: 'top' | 'jog' | 'transport' | 'pads' | 'tempo', parts: Entry[]): Section => ({ at, group: `${side} ${part}`, name: side, parts })
+  return [section('top', top), section('jog', jog), section('transport', transport), section('pads', pads), section('tempo', tempo)]
 }
 
 /** The browser's parts, its press shown where it names one of `decks`. */
@@ -97,7 +109,6 @@ function channel(flx: DdjFlx10, ch: DdjFlx10ChannelIndex): Entry[] {
     { shape: 'knob', at: [750, 212], size: 17, label: 'HI', controls: [{ control: c.eq.hi }] },
     { shape: 'knob', at: [750, 286], size: 17, label: 'MID', controls: [{ control: c.eq.mid }] },
     { shape: 'knob', at: [750, 360], size: 17, label: 'LOW', controls: [{ control: c.eq.low }] },
-    { shape: 'knob', at: [750, 456], size: 17, label: 'COLOR', controls: [{ control: c.color }] },
     { shape: 'button', at: [750, 550], size: [34, 16], label: 'CUE', name: 'headphone cue', controls: [{ control: c.cue }] },
     { shape: 'fader', at: [750, 690], size: [24, 116], name: 'fader', controls: [{ control: c.fader }] },
     { shape: 'position', at: [742, 759], size: 3, controls: [{ control: c.faderStart.leavesZero, shifted: flx.mixer.channels[ch].shifted.faderStart.leavesZero }] },
@@ -108,12 +119,16 @@ function channel(flx: DdjFlx10, ch: DdjFlx10ChannelIndex): Entry[] {
   ]
 }
 
+/** A channel's COLOR knob, the effects section's (MAN p.54). */
+const color = (flx: DdjFlx10, ch: DdjFlx10ChannelIndex): Entry[] => [{ shape: 'knob', at: [750, 456], size: 17, label: 'COLOR', controls: [{ control: flx.mixer.channels[ch].color }] }]
+
 type Detents = Extract<Entry, { shape: 'selector' }>['positions']
 
 /** A selector's positions as the dots round its knob, each lit where it is on. */
 const dots = (selector: string, positions: Detents): Entry[] => positions.map(({ name, at, on }) => ({ shape: 'position', at, size: 3, name: `${selector} ${name}`, controls: [{ control: on }] }))
 
-function mixer(flx: DdjFlx10): Entry[] {
+/** The mixer's sections but its channels, and the effects'. */
+function mixer(flx: DdjFlx10): Section[] {
   const fx = flx.effect.beatFxChSelect
   // Each selector's positions round its knob, as the panel prints them (MAN p.54).
   const effects: Detents = [
@@ -141,9 +156,7 @@ function mixer(flx: DdjFlx10): Entry[] {
     { name: '4', at: [1121, 736], on: flx.effect.beatFxChSelect.channels[3] },
     { name: 'master', at: [1129, 749], on: flx.effect.beatFxChSelect.master },
   ]
-  return [
-    { shape: 'position', at: [750, 60], size: 4, label: 'LINE', controls: [{ control: flx.mixer.channels[2].linePhono.line }] },
-    { shape: 'position', at: [1014, 60], size: 4, label: 'LINE', controls: [{ control: flx.mixer.channels[3].linePhono.line }] },
+  const mic: Entry[] = [
     { shape: 'passive', at: [658, 127], size: 14, label: 'MIC 1' },
     { shape: 'passive', at: [658, 180], size: 14, label: 'MIC 2' },
     { shape: 'knob', at: [658, 235], size: 15, label: 'HI', controls: [{ control: flx.mixer.mic.eq.hi }] },
@@ -151,20 +164,32 @@ function mixer(flx: DdjFlx10): Entry[] {
     { shape: 'position', at: [645, 360], size: [12, 14], label: 'OFF', controls: [{ control: flx.mixer.mic.off }] },
     { shape: 'position', at: [658, 360], size: [12, 14], controls: [{ control: flx.mixer.mic.on }] },
     { shape: 'position', at: [671, 360], size: [12, 14], label: 'TALK', controls: [{ control: flx.mixer.mic.talkover }] },
+  ]
+  const sound: Entry[] = [
     { shape: 'button', at: [639, 416], size: [28, 16], label: 'SPACE', controls: [{ control: flx.effect.soundColor.space }] },
     { shape: 'button', at: [678, 416], size: [28, 16], label: 'ECHO', controls: [{ control: flx.effect.soundColor.dubEcho }] },
     { shape: 'button', at: [639, 456], size: [28, 16], label: 'CRUSH', controls: [{ control: flx.effect.soundColor.crush }] },
     { shape: 'button', at: [678, 456], size: [28, 16], label: 'PITCH', controls: [{ control: flx.effect.soundColor.pitch }] },
     { shape: 'button', at: [639, 497], size: [28, 16], label: 'NOISE', controls: [{ control: flx.effect.soundColor.noise }] },
     { shape: 'button', at: [678, 497], size: [28, 16], label: 'FILTER', controls: [{ control: flx.effect.soundColor.filter }] },
+  ]
+  const sampler: Entry[] = [
     { shape: 'button', at: [658, 550], size: [34, 16], label: 'CUE', name: 'sampler cue', controls: [{ control: flx.mixer.samplerCue }] },
     { shape: 'knob', at: [658, 616], size: 17, label: 'SAMPLER VOL', controls: [{ control: flx.mixer.samplerVolume }] },
+  ]
+  const headphones: Entry[] = [
     { shape: 'knob', at: [658, 730], size: 17, label: 'MIX', controls: [{ control: flx.mixer.headphones.mix }] },
     { shape: 'knob', at: [658, 806], size: 17, label: 'LEVEL', controls: [{ control: flx.mixer.headphones.level }] },
+  ]
+  const master: Entry[] = [
     { shape: 'knob', at: [1106, 68], size: 17, label: 'MASTER', controls: [{ control: flx.mixer.masterLevel }] },
     { shape: 'knob', at: [1106, 128], size: 17, label: 'BOOTH', controls: [{ control: flx.mixer.boothLevel }] },
     { shape: 'button', at: [1106, 364], size: [36, 16], label: 'CUE', name: 'master cue', controls: [{ control: flx.mixer.masterCue }] },
+  ]
+  const crossfader: Entry[] = [
     { shape: 'fader', at: [882, 895], size: [124, 24], name: 'crossfader', controls: [{ control: flx.mixer.crossfader }] },
+  ]
+  const beat: Entry[] = [
     { shape: 'round', at: [1106, 425], size: 13, label: 'VOCAL', name: 'FX part vocal', controls: [{ control: flx.effect.fxPart.vocal }] },
     { shape: 'round', at: [1082, 468], size: 13, label: 'DRUMS', name: 'FX part drums', controls: [{ control: flx.effect.fxPart.drums }] },
     { shape: 'round', at: [1130, 468], size: 13, label: 'INST', name: 'FX part inst', controls: [{ control: flx.effect.fxPart.inst }] },
@@ -195,23 +220,62 @@ function mixer(flx: DdjFlx10): Entry[] {
     { shape: 'knob', at: [1106, 830], size: 17, label: 'LEVEL/DEPTH', controls: [{ control: flx.effect.levelDepth }] },
     { shape: 'round', at: [1106, 905], size: 22, label: 'ON/OFF', controls: [{ control: flx.effect.beatFxOnOff }] },
   ]
+  return [
+    { at: [0, 0], group: 'mixer channel 3', parts: [
+      { shape: 'position', at: [750, 60], size: 4, label: 'LINE', controls: [{ control: flx.mixer.channels[2].linePhono.line }] },
+    ] },
+    { at: [0, 0], group: 'mixer channel 4', parts: [
+      { shape: 'position', at: [1014, 60], size: 4, label: 'LINE', controls: [{ control: flx.mixer.channels[3].linePhono.line }] },
+    ] },
+    { at: [0, 0], group: 'mixer mic', parts: mic },
+    { at: [0, 0], group: 'effects sound color', parts: sound },
+    { at: [0, 0], group: 'mixer sampler', parts: sampler },
+    { at: [0, 0], group: 'mixer headphones', parts: headphones },
+    { at: [0, 0], group: 'mixer master', parts: master },
+    { at: [0, 0], group: 'mixer crossfader', parts: crossfader },
+    { at: [0, 0], group: 'effects beat', parts: beat },
+  ]
 }
+
+/** Channel `n`'s strip and its COLOR knob, `x` across the mixer. */
+function strip(flx: DdjFlx10, n: 1 | 2 | 3 | 4, x: number): Section[] {
+  const [ch, name] = [(n - 1) as DdjFlx10ChannelIndex, `channel ${n}`]
+  return [
+    { at: [x, 0], group: `mixer channel ${n}`, name, parts: channel(flx, ch) },
+    { at: [x, 0], group: 'effects sound color', name, parts: color(flx, ch) },
+  ]
+}
+
+const parts = <S extends string, P extends string>(section: S, ...of: P[]): `${S} ${P}`[] => of.map((part) => `${section} ${part}` as const)
+
+const whole = {
+  'deck 1/3': parts('deck 1/3', 'browse', 'top', 'jog', 'transport', 'pads', 'tempo'),
+  'deck 2/4': parts('deck 2/4', 'browse', 'top', 'jog', 'transport', 'pads', 'tempo'),
+  mixer: parts('mixer', 'channel 1', 'channel 2', 'channel 3', 'channel 4', 'mic', 'sampler', 'headphones', 'master', 'crossfader'),
+  effects: parts('effects', 'sound color', 'beat'),
+}
+
+/** Every section by name, to the sections it names whole: each part its own, a deck side, `mixer` and `effects` all of theirs. */
+export const sections: Readonly<Record<string, readonly DdjFlx10Section[]>> = { ...whole, ...Object.fromEntries(Object.values(whole).flatMap((names) => names.map((name) => [name, [name]]))) }
 
 export function layout(flx: DdjFlx10): Layout {
   return {
-    view: [0, 0, 1760, 970],
-    narrow: [[0, 0, 600, 970], [600, 0, 560, 970], [1158, 0, 602, 970]],
+    panels: [
+      { name: 'deck 1/3', box: [0, 0, 600, 970] },
+      { name: 'mixer', box: [600, 0, 560, 970] },
+      { name: 'deck 2/4', box: [1158, 0, 602, 970] },
+    ],
     sections: [
       { at: [0, 0], parts: frames },
-      { at: [0, 0], name: 'deck 1/3', parts: deck(flx, [0, 2], 2, 0, '3', '1', flx.deckSelect.left) },
-      { at: [1141, 0], name: 'deck 2/4', parts: deck(flx, [1, 3], 1, 3, '2', '4', flx.deckSelect.right) },
-      { at: [0, 0], name: 'browser 1/3', parts: browse(flx, [0, 2]) },
-      { at: [1141, 0], name: 'browser 2/4', parts: browse(flx, [1, 3]) },
-      { at: [0, 0], name: 'channel 3', parts: channel(flx, 2) },
-      { at: [88, 0], name: 'channel 1', parts: channel(flx, 0) },
-      { at: [176, 0], name: 'channel 2', parts: channel(flx, 1) },
-      { at: [264, 0], name: 'channel 4', parts: channel(flx, 3) },
-      { at: [0, 0], parts: mixer(flx) },
+      ...deck(flx, 'deck 1/3', [0, 0], [0, 2], 2, 0, '3', '1', flx.deckSelect.left),
+      ...deck(flx, 'deck 2/4', [1141, 0], [1, 3], 1, 3, '2', '4', flx.deckSelect.right),
+      { at: [0, 0], group: 'deck 1/3 browse', name: 'browser 1/3', parts: browse(flx, [0, 2]) },
+      { at: [1141, 0], group: 'deck 2/4 browse', name: 'browser 2/4', parts: browse(flx, [1, 3]) },
+      ...strip(flx, 3, 0),
+      ...strip(flx, 1, 88),
+      ...strip(flx, 2, 176),
+      ...strip(flx, 4, 264),
+      ...mixer(flx),
     ],
   }
 }

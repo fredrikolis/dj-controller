@@ -1,4 +1,4 @@
-/* Concern: the page's look: tokens, the connect button and error line over the twin, the twin filling one screen | Non-concern: the twin's own look (its stylesheet) | IO: none */
+/* Concern: the page's look: tokens, the connect button and error line over the twin, the twin filling one screen, a song in its free area | Non-concern: the twin's own look (its stylesheet) | IO: none */
 :root { --gap: 0.5rem; --radius-control: 6px; --bar: 2.25rem; }
 [hidden] { display: none !important; }
 html, body { height: 100%; }
@@ -11,3 +11,10 @@ header { display: flex; align-items: center; gap: var(--gap); box-sizing: border
 #error { margin: 0 16px var(--gap); }
 dj-controller-twin { flex: 1; min-height: 0; padding: 0 16px; }
 dj-controller-twin::part(panel) { max-height: calc(100dvh - var(--bar) - var(--gap)); }
+
+/* In the twin's free area, sized in its panel's units (a pad is 66 across). */
+.song { box-sizing: border-box; height: 100%; padding: 40px; font: 28px/1.4 "Helvetica Neue", Arial, sans-serif; }
+.song h2 { margin: 0; font-size: 64px; line-height: 1.1; }
+.song p { margin: 12px 0 32px; }
+.song ul { margin: 0; padding: 0; list-style: none; }
+.song li { padding: 12px 0; border-top: 2px solid var(--dj-twin-line); }

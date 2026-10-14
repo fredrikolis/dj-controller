@@ -1,5 +1,5 @@
 // Concern: the demo page: the desk, its songs, the basics' controller and twin, every feature in one list, hot cues kept in the URL | Non-concern: each feature's work | IO: (page, controller) -> audio
-import { Twin, theme } from 'dj-controller/twin'
+import { Twin, theme, type TwinPanel, type TwinSection } from 'dj-controller/twin'
 import { playConnected, type Play } from './basics.ts'
 import { beatFx } from './features/beat-fx/beat-fx.ts'
 import { beatJump } from './features/beat-jump/beat-jump.ts'
@@ -19,12 +19,14 @@ import { soundColorFx } from './features/sound-color-fx/sound-color-fx.ts'
 import { syncMaster } from './features/sync-master/sync-master.ts'
 import { find } from './shared/dom.ts'
 import { createDesk, type Desk } from './shared/engine/engine.ts'
+import { SONGS, type Song } from './shared/engine/songs.ts'
 import type { Feature } from './shared/feature.ts'
 import { audioFor, pageLife, reporter } from './shared/page.ts'
 import { twinText } from './shared/twin-text.ts'
 import type { Pair } from './shared/decks.ts'
 import type { HotCues } from './shared/transport/hot-cue-state.ts'
-import { cuesOf, deskStart, layout, loopStart, withCues, type DeskStart, type LoopStart } from './shared/view.ts'
+import { keyName } from './shared/transport/key.ts'
+import { cuesOf, deck2AsPads, deskStart, layout, loopStart, withCues, type DeskStart, type LoopStart } from './shared/view.ts'
 
 const signal = pageLife()
 document.adoptedStyleSheets = [...document.adoptedStyleSheets, theme]
@@ -32,7 +34,27 @@ const query = new URLSearchParams(location.search)
 
 /** Every FLX10 function the demo plays, each its own module. */
 const FEATURES: readonly Feature[] = [deckTransport, beatJump, masterTempo, keyShift, jog, syncMaster, loops, hotCues, memoryCues, padFx, beatFx, soundColorFx, sampler, mixer]
-const twin = find('dj-controller-twin', Twin, document)
+/** Deck 2 as its pads alone: its panel's free area is the page's. */
+const DECK_2_AS_PADS: readonly TwinSection[] = ['deck 1/3', 'mixer', 'effects', 'deck 2/4 pads']
+
+/** A song as the page's own content in `panel`'s free area: its title, tempo and key, and the layers it is made of. */
+function songCard(panel: TwinPanel, song: Song): HTMLElement {
+  const card = document.createElement('section')
+  card.slot = panel
+  card.className = 'song'
+  const title = document.createElement('h2')
+  title.textContent = song.title
+  const tempo = document.createElement('p')
+  tempo.textContent = `${song.bpm} BPM, ${keyName(song.key)}`
+  const layers = document.createElement('ul')
+  layers.append(...song.layers.map(({ name }) => Object.assign(document.createElement('li'), { textContent: name })))
+  card.append(title, tempo, layers)
+  return card
+}
+
+const twin = deck2AsPads(query) ? new Twin({ sections: DECK_2_AS_PADS }) : new Twin()
+if (deck2AsPads(query)) twin.append(songCard('deck 2/4', SONGS[1]))
+document.body.append(twin)
 const report = reporter(find('#error', HTMLElement, document), signal)
 const fixed = layout(query)
 if (fixed) twin.setAttribute('layout', fixed)

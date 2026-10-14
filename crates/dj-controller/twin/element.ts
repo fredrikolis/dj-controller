@@ -1,12 +1,13 @@
-// Concern: <dj-controller-twin>: a controller's panel from its layout, following each control's stream while it lives, a held part lit | Non-concern: drawing, following | IO: (controller) -> SVG
+// Concern: <dj-controller-twin>: a controller's panel, whole or the sections asked for, following each control's stream, a held part lit | Non-concern: drawing, following | IO: (controller) -> SVG
 import { draw, el, type View } from './draw.js'
 import { follow, initial, type State } from './follow.js'
-import type { Button, TwinDisplays, TwinLabelled, VirtualGestures } from '../index.js'
+import type { Button, TwinDisplays, TwinLabelled, TwinOptions, TwinSection, VirtualGestures } from '../index.js'
+import { build, type Built } from './built.js'
 import { checkedText } from './displays.js'
 import { hands, type Point } from './gestures.js'
 import { checked } from './labels.js'
-import { layoutOf, place, placed, type Twinned } from './layout.js'
-import type { Layout, Part } from './types.js'
+import { checkedSections, layoutOf, placed, sectionsOf, type Twinned } from './layout.js'
+import type { Box, Layout, Part } from './types.js'
 import { logger } from './logger.js'
 import { holdable, playable } from './hold.js'
 import { flash, paint, type Rgb, type Told } from './paint.js'
@@ -30,9 +31,11 @@ export class Twin extends HTMLElement {
   #life: AbortController | null = null
   #running: Promise<void> = Promise.resolve()
   #shadow = this.attachShadow({ mode: 'open' })
+  #sections: readonly TwinSection[] | undefined
 
-  constructor() {
+  constructor(options: TwinOptions = {}) {
     super()
+    this.#sections = options.sections && checkedSections(options.sections)
     this.#shadow.adoptedStyleSheets = [styles]
   }
 
@@ -132,11 +135,8 @@ export class Twin extends HTMLElement {
     const following = AbortSignal.any([signal, stop.signal])
     try {
       const layout = layoutOf(controller)
-      const parts = place(layout)
-      // Which narrow panel each part sits in; a part outside them all is the layout's error.
-      const homes = parts.map((part) => layout.narrow.findIndex(([x, y, w, h]) => part.x >= x && part.x < x + w && part.y >= y && part.y < y + h))
-      const lost = parts.findIndex((_, i) => homes[i] < 0)
-      if (lost >= 0) throw new RangeError(`part ${lost} lies outside every narrow panel`)
+      const built = build(layout, this.#sections && sectionsOf(controller.model, this.#sections))
+      const { parts } = built
       const rgb: Rgb = (n) => controller.palette?.colour(n)?.rgb
       const states = parts.map((part) => placed(part).map(initial))
       const views: View[][] = parts.map(() => [])
@@ -184,7 +184,7 @@ export class Twin extends HTMLElement {
         if (stale) return
         drawn.abort()
         drawn = new AbortController()
-        this.#render(layout, parts, homes, views, light, AbortSignal.any([signal, drawn.signal]), () => parts.forEach((_, i) => repaint(i)))
+        this.#render(layout, built, views, light, AbortSignal.any([signal, drawn.signal]), () => parts.forEach((_, i) => repaint(i)))
       }
       matchMedia(NARROW).addEventListener('change', render, { signal })
       render()
@@ -216,15 +216,17 @@ export class Twin extends HTMLElement {
     }
   }
 
-  #render(layout: Layout, parts: Part[], homes: number[], views: View[][], light: (i: number, held: boolean) => Promise<void>, signal: AbortSignal, all: () => void): void {
+  #render(layout: Layout, { parts, homes, panels: shown, free, shifts }: Built, views: View[][], light: (i: number, held: boolean) => Promise<void>, signal: AbortSignal, all: () => void): void {
     const mode = this.getAttribute('layout') ?? (matchMedia(NARROW).matches ? 'narrow' : 'wide')
-    const boxes = mode === 'narrow' ? layout.narrow : [layout.view]
+    const stacked = shown.map((panel) => layout.panels[panel].box)
+    const boxes = mode === 'narrow' ? stacked : [around(stacked)]
+    // Which of the panels drawn holds what sits in the layout's `panel`.
+    const drawnIn = (panel: number) => (mode === 'narrow' ? shown.indexOf(panel) : 0)
     const controller = this.#controller
     const unit: VirtualGestures | undefined = controller && 'virtual' in controller ? controller.virtual : undefined
     this.#shadow.replaceChildren(...boxes.map(([x, y, w, h]) => el(null, 'svg', { viewBox: `${x} ${y} ${w} ${h}`, part: 'panel', role: 'group', 'aria-label': controller?.model ?? '' })))
     const panels = [...this.#shadow.querySelectorAll('svg')]
-    // The SHIFT a part plays under: its section's, else the layout's first.
-    const shifts = parts.filter((part) => part.shape === 'button' && part.latches)
+    // The SHIFT a part plays under, drawn or not: its section's, else the layout's first.
     const shiftOf = (part: Part): Button<unknown> | undefined => {
       const shift = shifts.find((s) => s.section === part.section) ?? shifts[0]
       return shift?.shape === 'button' ? shift.controls[active(shift)].control : undefined
@@ -233,7 +235,7 @@ export class Twin extends HTMLElement {
       views[i] = panels.map((svg) => draw(svg, part))
       const name = [part.section, part.name ?? part.label ?? part.shape].filter(Boolean).join(' ')
       // Only the panel a part sits in offers it; its copies the other panels clip are not there to reach.
-      const home = mode === 'narrow' ? homes[i] : 0
+      const home = drawnIn(homes[i])
       // Each part by its name, for a page's own selectors and tests.
       views[i].forEach(({ g }) => g.setAttribute('data-part', name))
       const offer = (make: (g: SVGGElement, svg: SVGSVGElement) => void) => views[i].forEach(({ g }, k) => (k === home ? make(g, panels[k]) : g.setAttribute('aria-hidden', 'true')))
@@ -252,6 +254,12 @@ export class Twin extends HTMLElement {
         if (played) offer((g, svg) => playable(g, name, played, (e) => point(svg, e), signal))
       } else if (lights(part)) offer((g) => holdable(g, name, (held) => light(i, held), signal))
     })
+    for (const { panel, box } of free) {
+      const [x, y, width, height] = box
+      const slot = document.createElement('slot')
+      slot.name = layout.panels[panel].name
+      el(panels[drawnIn(panel)], 'foreignObject', { x, y, width, height }).append(slot)
+    }
     this.#shadow.append(this.#fullscreen(signal))
     all()
   }
@@ -274,6 +282,12 @@ export class Twin extends HTMLElement {
     document.addEventListener('fullscreenchange', () => (button.textContent = document.fullscreenElement === this ? 'exit full screen' : 'full screen'), { signal })
     return button
   }
+}
+
+/** The box around `boxes`. */
+function around(boxes: readonly Box[]): Box {
+  const [x, y] = [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1]))]
+  return [x, y, Math.max(...boxes.map((b) => b[0] + b[2])) - x, Math.max(...boxes.map((b) => b[1] + b[3])) - y]
 }
 
 /** Which of a part's controls it shows: the first whose deck is in control, else the first. */

@@ -166,6 +166,37 @@ export type DdjFlx10Displays = { readonly beatFx: BeatFxText; readonly jog1: Jog
 /** Every display `<dj-controller-twin>` shows a host's text on, by id. */
 export type TwinDisplays = DdjFlx10Displays;
 
+/**
+ * A section of the DDJ-FLX10's panel a twin is built of, as the manual's "Part names and functions"
+ * divides it (MAN pp.10, 11, 14, 50, 54): a deck side, the mixer, the effects, or one part of one.
+ * A side or `mixer` or `effects` alone names every part of it. Of a deck side: `browse`, the rotary
+ * selector, BACK and VIEW; `top`, the rows above the jog; `jog`; `transport`, SHIFT, 4 BEAT JUMP,
+ * CUE and PLAY; `pads`, the eight Performance Pads with their pad mode and PAGE buttons; `tempo`,
+ * BEAT SYNC, KEY SYNC, the tempo reset and TEMPO. Of `mixer`, a channel has its strip but its COLOR
+ * knob, which is `effects sound color`'s with the SOUND COLOR FX buttons; `effects beat` is FX PART
+ * SELECT down to Beat FX ON/OFF.
+ */
+export type DdjFlx10Section =
+  | `deck ${"1/3" | "2/4"}${"" | " browse" | " top" | " jog" | " transport" | " pads" | " tempo"}`
+  | `mixer${"" | " channel 1" | " channel 2" | " channel 3" | " channel 4" | " mic" | " sampler" | " headphones" | " master" | " crossfader"}`
+  | `effects${"" | " sound color" | " beat"}`;
+
+/** A section any model's twin is built of. */
+export type TwinSection = DdjFlx10Section;
+
+/** A panel of the DDJ-FLX10's twin: what it stacks where narrow, and the name of the slot a host fills its free area through. */
+export type DdjFlx10Panel = "deck 1/3" | "mixer" | "deck 2/4";
+
+export type TwinPanel = DdjFlx10Panel;
+
+/**
+ * What `new Twin(options)` builds. `sections`: the sections of the unit it draws, follows and
+ * plays, and no other: nothing is made for one left out. Left out itself, the whole unit. Fixed for
+ * the twin's life. The constructor throws a RangeError for an empty list or a name no model has;
+ * a name the controller's model lacks stops the twin with its `error` event.
+ */
+export type TwinOptions = { readonly sections?: readonly TwinSection[] };
+
 /** A selector's positions as its controller groups them: `effect.beatFxSelect`, `effect.beatFxChSelect`. */
 export type TwinSelector = { readonly [position: string]: Switch | readonly Switch[] };
 /** What a host can label on the twin: a button, a pad, a knob or fader, an encoder or jog, a selector. */
@@ -182,6 +213,17 @@ export type TwinLabelled = Button<unknown> | Pad<unknown> | Absolute | Relative<
  * keys step a focused one; a click sets a selector's position; SHIFT latches on a click, and the
  * keyboard's Shift held with any gesture holds the part's SHIFT for it; a button with a `long-press`
  * layer held for 1 s presses that layer too.
+ *
+ * Built of some sections only (`TwinOptions`), it shows the panels from the first to the last that
+ * holds one, each part at its place on the unit. In each of those panels with a section left out,
+ * the largest rectangle clear of what is built is the host's: a child of the element with
+ * `slot` set to the panel's name (`TwinPanel`) is laid out in it, in the panel's own units (a
+ * DDJ-FLX10 pad is 66 across), so it scales with the twin. A control with no part drawn is still
+ * the controller's: its events arrive, its outputs are written, its label or text is kept unshown,
+ * and the keyboard's Shift still holds a section's own SHIFT.
+ *
+ * Attribute `layout`, `wide` or `narrow`, overrides the width's choice. Themed by `--dj-twin-*`
+ * custom properties, `::part(panel)` and `::part(fullscreen)`.
  */
 export interface TwinHost {
   /** The controller drawn, connected or virtual; null draws nothing. */

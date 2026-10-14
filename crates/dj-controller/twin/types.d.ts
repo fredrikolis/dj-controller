@@ -1,5 +1,5 @@
 // Concern: the twin's layout types: a part's shape, place and typed controls, a model's layout | Non-concern: placing (layout.ts), any model's layout | IO: none
-import type { Absolute, Button, ColourPad, LedButton, Pad, Relative, Switch, TwinDisplays, ValueOut } from '../index.js'
+import type { Absolute, Button, ColourPad, LedButton, Pad, Relative, Switch, TwinDisplays, TwinPanel, TwinSection, ValueOut } from '../index.js'
 
 export type Id = { readonly shift?: boolean; readonly deck?: number }
 
@@ -45,6 +45,9 @@ export type Entry = Geometry &
     | { readonly shape: 'display'; readonly id: 'beatFx'; readonly controls: readonly []; readonly channels: readonly { readonly text: string; readonly on: Switch }[] }
   )
 
-export type Layout = { readonly view: Box; readonly narrow: readonly Box[]; readonly sections: readonly { readonly at: readonly [number, number]; readonly name?: string; readonly parts: readonly Entry[] }[] }
+/** `group`: the section a host names to build these; with none, built with their panel. */
+export type Section = { readonly at: readonly [number, number]; readonly group?: TwinSection; readonly name?: string; readonly parts: readonly Entry[] }
 
-export type Part = Entry & { readonly x: number; readonly y: number; readonly section?: string }
+export type Layout = { readonly panels: readonly { readonly name: TwinPanel; readonly box: Box }[]; readonly sections: readonly Section[] }
+
+export type Part = Entry & { readonly x: number; readonly y: number; readonly section?: string; readonly group?: TwinSection }

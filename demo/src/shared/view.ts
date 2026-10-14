@@ -1,4 +1,4 @@
-// Concern: the page's view state as its URL query, one owner: the twin's layout, the decks' start, loop and hot cues | Non-concern: each view | IO: (query) <-> state
+// Concern: the page's view state as its URL query, one owner: the twin's layout and sections, the decks' start, loop and hot cues | Non-concern: each view | IO: (query) <-> state
 import type { Pair } from './decks.ts'
 import { NO_HOT_CUES, slotName, type HotCue, type HotCues } from './transport/hot-cue-state.ts'
 
@@ -15,6 +15,9 @@ const LOOPS: readonly LoopStart[] = ['pending', 'active', 'adjust', 'stored']
 
 /** `?layout=wide` or `?layout=narrow` fixes the twin's layout; the page's width picks it otherwise. */
 export const layout = (query: URLSearchParams): Layout | null => LAYOUTS.find((l) => l === query.get('layout')) ?? null
+
+/** `?deck2=pads`: deck 2 as its pads alone. */
+export const deck2AsPads = (query: URLSearchParams): boolean => query.get('deck2') === 'pads'
 
 /** `?state=loading` or `?state=playing`. */
 export const deskStart = (query: URLSearchParams): DeskStart | null => STARTS.find((s) => s === query.get('state')) ?? null

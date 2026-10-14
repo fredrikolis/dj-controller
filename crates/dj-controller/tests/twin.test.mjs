@@ -1,4 +1,4 @@
-// Concern: what the twin promises a host, read from its own modules as the element needs a browser: every physical input of a model's controller has a part, a label shows on the bank it names, a text its labels or displays cannot carry is refused | Non-concern: drawing, pointer and keys, the element (browsers) | IO: (Device, virtual controller) -> assertions
+// Concern: what the twin promises a host, read from its own modules as the element needs a browser: every physical input of a model's controller has a part, a twin of some sections builds those alone and leaves a free area clear of them, a label shows on the bank it names, a text its labels or displays cannot carry is refused | Non-concern: drawing, pointer and keys, the element (browsers) | IO: (Device, virtual controller) -> assertions
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -11,7 +11,8 @@ const pkg = process.env.DJ_CONTROLLER_PKG
 const { initSync } = await import(join(pkg, 'dj_controller.js'))
 initSync({ module: readFileSync(join(pkg, 'dj_controller_bg.wasm')) })
 const { connect, virtual } = await import(join(pkg, 'index.js'))
-const { layoutOf, place, placed } = await import(join(pkg, 'twin/layout.js'))
+const { checkedSections, layoutOf, place, placed, sectionsOf } = await import(join(pkg, 'twin/layout.js'))
+const { build } = await import(join(pkg, 'twin/built.js'))
 const { tree, showing, shownOf } = await import(join(pkg, 'twin/tree.js'))
 const { checked } = await import(join(pkg, 'twin/labels.js'))
 const { checkedText } = await import(join(pkg, 'twin/displays.js'))
@@ -38,6 +39,48 @@ test('the FLX10 layout gives every physical input of its controller a part', asy
   const missing = inputs(flx).filter(([, control]) => !shown.has(control)).map(([at]) => at)
   assert.deepEqual(missing, [])
   await flx.close()
+})
+
+test('a twin of no sections named builds every part of every panel and leaves no free area', async () => {
+  const virt = await virtual('DDJ-FLX10')
+  const layout = layoutOf(virt)
+  const whole = build(layout, undefined)
+  assert.equal(whole.parts.length, place(layout).length)
+  assert.deepEqual(whole.panels, layout.panels.map((_, i) => i))
+  assert.deepEqual(whole.free, [])
+  await virt.close()
+})
+
+test('a twin of some sections builds their parts alone, each at its place, and its free area lies in its panel clear of them', async () => {
+  const virt = await virtual('DDJ-FLX10')
+  const layout = layoutOf(virt)
+  const built = build(layout, sectionsOf(virt.model, ['deck 1/3', 'mixer', 'effects', 'deck 2/4 pads']))
+  const controls = new Set(built.parts.flatMap((part) => placed(part).map(({ control }) => control)))
+  const [left, right] = virt.decks
+  for (const drawn of [left.cue, left.jog.touch, left.pads[0], virt.browser.rotate, virt.mixer.crossfader, virt.mixer.channels[3].fader, virt.mixer.channels[0].color, virt.effect.levelDepth, right.pads[7], right.padMode.sampler, right.page.left]) assert.ok(controls.has(drawn))
+  for (const leftOut of [right.cue, right.playPause, right.shift, right.jog.touch, right.tempo, right.beatSync, right.quantize]) assert.ok(!controls.has(leftOut))
+  const everywhere = place(layout)
+  for (const part of built.parts) assert.ok(everywhere.some((whole) => whole.x === part.x && whole.y === part.y && whole.name === part.name && whole.section === part.section))
+  assert.deepEqual(built.panels, [0, 1, 2])
+  assert.equal(built.free.length, 1)
+  const [{ panel, box: [x, y, w, h] }] = built.free
+  assert.equal(layout.panels[panel].name, 'deck 2/4')
+  const [px, py, pw, ph] = layout.panels[panel].box
+  assert.ok(w > 0 && h > 0 && x >= px && y >= py && x + w <= px + pw && y + h <= py + ph)
+  for (const part of built.parts.filter((p) => p.group !== undefined)) {
+    const [sw, sh] = typeof part.size === 'number' ? [part.size * 2, part.size * 2] : part.size
+    assert.ok(part.x + sw / 2 <= x || part.x - sw / 2 >= x + w || part.y + sh / 2 <= y || part.y - sh / 2 >= y + h, part.name)
+  }
+  assert.ok(built.shifts.some((shift) => shift.controls.some(({ control }) => control === right.shift)), 'a SHIFT not drawn is still the one its section plays under')
+  assert.deepEqual(build(layout, sectionsOf(virt.model, ['mixer channel 1'])).panels, [1], 'a panel holding no section built is out of view')
+  assert.deepEqual(build(layout, sectionsOf(virt.model, ['deck 1/3', 'deck 2/4'])).free.map((free) => layout.panels[free.panel].name), ['mixer'], 'a panel between two built is in view, all of it free')
+  await virt.close()
+})
+
+test('sections are named whole or by one part, and a list of none or a name no model has is refused', () => {
+  assert.deepEqual(sectionsOf('DDJ-FLX10', ['effects', 'deck 2/4 pads']), ['effects sound color', 'effects beat', 'deck 2/4 pads'])
+  assert.deepEqual(checkedSections(['mixer', 'deck 1/3 jog']), ['mixer', 'deck 1/3 jog'])
+  for (const bad of [[], ['deck'], ['deck 1/3', 'pads']]) assert.throws(() => checkedSections(bad), RangeError)
 })
 
 test("a label's bank is the view it names, the unshifted bank showing for a control, SHIFT's while held", async () => {
